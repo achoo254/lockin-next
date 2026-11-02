@@ -1,0 +1,26 @@
+# .65: /etc/systemd/system/lockin-server.service (installed by infra/deploy.sh setup).
+[Unit]
+Description=Lockin API (lockin.hoandat.com)
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+User=lockin
+Group=lockin
+# NODE_ENV=production, PORT=5300, PUBLIC_URL, DATABASE_URL, AUTH_ISSUER, AUTH_CLIENT_ID, AUTH_CLIENT_SECRET:
+# written on the server from the env folder outside git (docs/deployment-guide.md), never in the repo.
+EnvironmentFile=/etc/lockin/production.env
+WorkingDirectory=/var/www/lockin/current
+ExecStart=/opt/node22/bin/node --enable-source-maps /var/www/lockin/current/apps/server/dist/server/index.mjs
+Restart=on-failure
+RestartSec=3
+# .65 has 8 GB shared by every app; the API is small (one Node process, no workers), so cap it.
+MemoryHigh=160M
+MemoryMax=256M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

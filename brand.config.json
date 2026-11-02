@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/@achoo254/brand/brand.config.schema.json",
+  "appName": "Lockin",
+  "shortName": "Lockin",
+  "description": "Chốt kèo đi chơi với nhóm bạn bằng một link: bạn bè vote giờ và chỗ không cần tài khoản, bạn chốt là cả nhóm biết.",
+  "colors": {
+    "primary": "#6a52c9",
+    "background": "#f7f4ff",
+    "backgroundDark": "#1e1638"
+  },
+  "icon": "brand/app-icon.svg",
+  "iconMaskable": "brand/app-icon-maskable.svg",
+  "webInstall": true,
+  "appIds": {
+    "ios": "com.hoandat.lockin"
+  },
+  "urlScheme": "com.hoandat.lockin",
+  "primaryTenant": {
+    "domain": "hoandat.com",
+    "issuer": "https://auth.hoandat.com"
+  },
+  "hostTemplates": {
+    "web": "lockin.{domain}"
+  }
+}

@@ -1,0 +1,694 @@
+/* The app's look: a lavender page with a soft glow, white rounded cards, heavy Inter titles, the icon's violet for
+   what can be pressed and its pink for "locked in". Every colour, radius and spacing step comes from tokens.css
+   (checked by `pnpm check:tokens`). */
+
+/* ---------- base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  background-color: var(--c-bg);
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--c-text);
+  background-color: var(--c-bg);
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+a {
+  color: var(--c-primary);
+  text-underline-offset: 3px;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--c-chip-pink);
+  color: var(--c-text);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- the frame: header, main, footer ---------- */
+.site {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(900px 520px at 0 0, var(--c-bg-deep), transparent 70%),
+    radial-gradient(700px 460px at 100% 220px, var(--c-accent-soft), transparent 70%),
+    var(--c-bg);
+}
+/* Content keeps clear of the notch and rounded corners in landscape. */
+.container {
+  width: 100%;
+  max-width: calc(var(--container) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 30;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--c-primary-solid);
+  color: var(--c-on-primary);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip-link:focus {
+  transform: none;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--c-topbar);
+  border-bottom: 1px solid var(--c-border);
+}
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--topbar-h);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  flex: none;
+  color: var(--c-text);
+  text-decoration: none;
+}
+.brand-mark {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+}
+.brand-name {
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* pills: the sign-up link in the header */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.pill-primary {
+  border-color: transparent;
+  background: var(--c-primary-solid);
+  color: var(--c-on-primary);
+  box-shadow: var(--shadow-primary);
+}
+.pill-primary:hover {
+  background: var(--c-primary-solid-hover);
+  transform: translateY(-1px);
+}
+
+/* the language pill: one round button per language, the current one violet */
+.lang-switch {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-full);
+  background: var(--c-surface-subtle);
+}
+.lang-option {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--c-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.lang-option:hover {
+  color: var(--c-text);
+}
+.lang-option[aria-pressed="true"] {
+  background: var(--c-primary-solid);
+  color: var(--c-on-primary);
+}
+
+/* The shared account menu (@achoo254/app-shell AccountMenu, layout from app-shell.css) in the app's look.
+   app-shell.css reads the same token names as tokens.css; the ones it needs beyond them are mapped here. */
+.shell-account {
+  --font-mono: var(--font-sans);
+  --c-icon-muted: var(--c-text-muted);
+  --icon-stroke: 1.75;
+}
+.shell-account-trigger {
+  min-height: var(--tap);
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-full);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+.shell-account-trigger:hover,
+.shell-account[open] > .shell-account-trigger {
+  border-color: var(--c-primary);
+}
+.shell-account-trigger .shell-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+.shell-avatar-initial {
+  background: var(--c-primary-solid);
+  color: var(--c-on-primary);
+  font-weight: 800;
+}
+.shell-account-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.shell-account-item:hover {
+  background: var(--c-surface-subtle);
+}
+/* Phones: the avatar alone (app-shell.css hides the name), a round button. */
+@media (max-width: 639px) {
+  .shell-account-trigger {
+    padding: 0 var(--space-1);
+  }
+  .shell-account-trigger > .shell-icon {
+    display: none;
+  }
+}
+
+.main {
+  flex: 1 0 auto;
+}
+.main:focus {
+  outline: none;
+}
+.main-center {
+  display: grid;
+  place-items: center;
+  padding-block: var(--space-7);
+}
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  padding-block: var(--space-6) var(--space-7);
+}
+
+.foot {
+  padding-top: var(--space-6);
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--c-border);
+  background: var(--c-surface);
+}
+.foot-inner {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+.foot-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.foot-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+.foot-home {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--c-primary);
+  text-decoration: none;
+}
+.foot-home:hover {
+  text-decoration: underline;
+}
+.foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: var(--space-2);
+}
+.foot-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  color: var(--c-text-muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+.foot-link:hover {
+  color: var(--c-text);
+  text-decoration: underline;
+}
+.foot-link[aria-current="page"] {
+  color: var(--c-primary);
+}
+.foot-note {
+  font-size: 13px;
+  color: var(--c-text-muted);
+}
+
+/* Phones: the header keeps the name, the language pill and one account control. */
+@media (max-width: 519px) {
+  .hide-phone {
+    display: none;
+  }
+  .pill {
+    padding: 0 var(--space-3);
+  }
+}
+@media (min-width: 520px) {
+  .only-phone {
+    display: none;
+  }
+}
+
+/* ---------- shared pieces: cards, buttons, alerts ---------- */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+.section-title {
+  font-weight: 800;
+  font-size: clamp(24px, 4vw, 32px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-text);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.btn-primary {
+  background: var(--c-primary-solid);
+  color: var(--c-on-primary);
+  box-shadow: var(--shadow-primary);
+}
+.btn-primary:hover {
+  background: var(--c-primary-solid-hover);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: var(--c-surface);
+  border-color: var(--c-border-strong);
+}
+.btn-secondary:hover {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+.btn-sm {
+  padding: 0 var(--space-4);
+  font-size: 14px;
+}
+.btn-cta {
+  min-height: 52px;
+  padding: 0 var(--space-6);
+  font-size: 17px;
+  font-weight: 800;
+}
+.alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  font-size: 14px;
+  color: var(--c-text);
+}
+.alert-error {
+  background: color-mix(in srgb, var(--c-error) 8%, var(--c-surface));
+  border-color: color-mix(in srgb, var(--c-error) 45%, var(--c-surface));
+}
+.alert-info {
+  background: color-mix(in srgb, var(--c-info) 8%, var(--c-surface));
+  border-color: color-mix(in srgb, var(--c-info) 40%, var(--c-surface));
+}
+
+/* ---------- home: hero, sample plan, steps ---------- */
+.home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-7);
+}
+.hero {
+  display: grid;
+  gap: var(--space-6);
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    padding-block: var(--space-6);
+  }
+}
+.hero-intro {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+.hero-title {
+  font-weight: 800;
+  font-size: clamp(34px, 6vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+.hero-lede {
+  max-width: 34em;
+  font-size: 18px;
+  color: var(--c-text-muted);
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+.hero-note {
+  font-size: 14px;
+  color: var(--c-text-muted);
+}
+
+/* The sample plan: a phone-sized card, tilted a little, with vote bars and initials. */
+.sample {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+}
+.sample-card {
+  width: 100%;
+  max-width: 380px;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  transform: rotate(-1.5deg);
+}
+.sample-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sample-tag {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--c-chip-violet);
+  color: var(--c-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.sample-stamp {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--c-chip-pink);
+  color: var(--c-accent-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transform: rotate(4deg);
+}
+.sample-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.sample-meta,
+.sample-deadline {
+  font-size: 14px;
+  color: var(--c-text-muted);
+}
+.sample-group {
+  display: grid;
+  gap: var(--space-2);
+}
+.sample-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sample-options {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sample-option {
+  display: grid;
+  gap: 6px;
+  padding: var(--space-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: var(--c-surface-subtle);
+}
+.sample-option.is-locked {
+  border-color: var(--c-accent);
+  background: var(--c-surface);
+}
+.sample-option-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.sample-option-votes {
+  color: var(--c-text-muted);
+  font-weight: 600;
+}
+.sample-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--c-violet-light);
+}
+.is-locked .sample-bar {
+  background: var(--c-accent);
+}
+.sample-voters {
+  display: flex;
+}
+.sample-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--c-surface);
+  background: var(--c-chip-mint);
+  color: var(--c-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+.sample-avatar:nth-child(2n) {
+  background: var(--c-chip-violet);
+}
+.sample-avatar:nth-child(3n) {
+  background: var(--c-chip-pink);
+}
+.sample-going {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-accent-text);
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-5);
+}
+.step-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 760px) {
+  .step-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.step {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+}
+.step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--c-chip-violet);
+  color: var(--c-primary);
+  font-weight: 800;
+}
+.step-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+.step-text {
+  color: var(--c-text-muted);
+}
+
+/* ---------- sign-in card and coming-soon card ---------- */
+.sign-in-card,
+.soon {
+  width: 100%;
+  max-width: 440px;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+.sign-in-mark {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-lg);
+}
+.sign-in-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.sign-in-lead {
+  color: var(--c-text-muted);
+}
+.sign-in-note {
+  font-size: 13px;
+  color: var(--c-text-muted);
+}
+.sign-in-card .alert {
+  text-align: left;
+}
+
+/* ---------- documents: legal pages, 404 ---------- */
+.doc {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 760px;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-5);
+}
+.doc-title {
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.doc-heading {
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: 19px;
+  font-weight: 800;
+}
+.doc p + p {
+  margin-top: var(--space-2);
+}
+.doc ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.doc .btn {
+  justify-self: start;
+}

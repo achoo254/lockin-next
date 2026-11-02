@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+
+# pnpm 11 refuses to install while a dependency with a build script is not listed here.
+allowBuilds:
+  esbuild: true
+
+# body-parser below 2.4.0 has a denial-of-service advisory (GHSA-27r3-jxmh-p828); express 5 still allows
+# the older 2.x, so pin the fixed release until express requires it itself.
+overrides:
+  body-parser: ^2.4.0

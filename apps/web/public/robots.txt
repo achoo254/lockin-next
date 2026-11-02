@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+# Plan links are private to the group they were sent to.
+Disallow: /k/
+Disallow: /new
+
+Sitemap: https://lockin.hoandat.com/sitemap.xml

@@ -1,0 +1,33 @@
+{
+  "name": "lockin-next",
+  "private": true,
+  "type": "module",
+  "description": "Lockin: nhóm bạn chốt kèo đi chơi bằng một link, bạn bè vote giờ và chỗ không cần tài khoản",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @lockin/server --filter @lockin/web dev",
+    "build": "pnpm --filter @lockin/web build && pnpm --filter @lockin/server bundle",
+    "test": "vitest run --maxWorkers=2",
+    "typecheck": "tsc --noEmit -p tsconfig.json && pnpm -r --workspace-concurrency=1 typecheck",
+    "lint": "eslint . --max-warnings=0 && pnpm check:brand && pnpm check:tokens",
+    "check:brand": "check-brand --config brand.config.json --dir apps --dir scripts --skip-dir test-results --skip-dir playwright-report --skip-dir generated --source-file '\\.(ts|tsx|js|mjs|cjs|css|html)$' --code-file '\\.(ts|tsx|js|mjs|cjs)$' --test-file '(^|/)(e2e|test)/|\\.(test|spec)\\.tsx?$' --jsx-text --html-word --skip-comment-lines --ignore-marker 'check-brand-ignore:' --colour-dir apps/web/src --token-file apps/web/src/ui/tokens.css --hint 'read it from apps/web/src/brand.ts'",
+    "check:tokens": "tsx scripts/check-tokens.ts",
+    "brand:gen": "tsx scripts/brand-gen.ts"
+  },
+  "devDependencies": {
+    "@achoo254/brand": "github:achoo254/shared-next#v0.12.0&path:/packages/brand",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

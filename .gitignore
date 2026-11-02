@@ -1,0 +1,18 @@
+.DS_Store
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.*
+!.env.example
+*.log
+.data/
+test-results/
+playwright-report/
+.idea/
+*.pem
+*.key
+*.dump
+
+# Agent config (rules, skills, agent memory) stays on the machines and in the private workspace repo, not in this public repo.
+/.claude/

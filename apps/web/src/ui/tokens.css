@@ -1,0 +1,98 @@
+/* =====================================================================
+   LOCKIN DESIGN TOKENS: lavender day
+   The app's one designed theme (no light/dark switch), taken from the
+   app icon: a soft lavender page, white cards, deep ink text, the icon's
+   violet for what can be pressed and its pink for the "locked in" accent.
+   This file holds the ONLY colour literals of the web app (checked by
+   `pnpm check:tokens` and `pnpm check:brand`); every stylesheet and
+   component reads these custom properties.
+
+   `pnpm check:tokens` checks every text colour below on every surface and
+   chip at WCAG AA 4.5:1, white on the solid buttons, and the form-control
+   outline at 3:1.
+   ===================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* type: Inter, self-hosted with the Vietnamese subset (@fontsource, main.tsx), heavy weights for titles */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* spacing, sizes, radii, motion */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --gutter: 16px;
+  --container: 1120px;
+  --topbar-h: 64px;
+  --tap: 44px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* page and surfaces */
+  --c-bg: #f7f4ff; /* lavender mist */
+  --c-bg-deep: #ece6ff; /* the glow behind the hero */
+  --c-surface: #ffffff;
+  --c-surface-subtle: #f3effe;
+  --c-surface-raised: #ffffff;
+  --c-topbar: #ffffff;
+
+  /* text and lines */
+  --c-text: #1e1638; /* deep ink violet */
+  --c-text-muted: #564d72;
+  --c-border: #e3dcf5;
+  --c-border-subtle: #eee9fb;
+  --c-border-strong: #857aa6; /* form-control outlines: 3:1 on every surface */
+
+  /* the icon's violet: links and accents (text), solid buttons (fill) */
+  --c-primary: #5a47aa;
+  --c-primary-solid: #6a52c9;
+  --c-primary-solid-hover: #5a47aa;
+  --c-on-primary: #ffffff;
+  /* the icon's pink: the "locked in" stamp and vote bars (fill), and its readable shade for text */
+  --c-accent: #e796f3;
+  --c-accent-soft: #fbe6ff;
+  --c-accent-text: #9c2a99;
+  --c-violet-light: #8874d8; /* second vote bar (fill only) */
+
+  /* chips behind text: the sample plan's tag, avatars and stamp */
+  --c-chip-violet: #e9e3ff;
+  --c-chip-pink: #fbe3ff;
+  --c-chip-mint: #d9f5e8;
+
+  /* status */
+  --c-error: #b42318;
+  --c-info: #3b4fd8;
+  --c-backdrop: rgb(30 22 56 / 0.5);
+
+  /* shadows and focus */
+  --shadow-card: 0 18px 40px -24px rgb(64 40 140 / 0.35), 0 1px 0 rgb(255 255 255 / 0.8) inset;
+  --shadow-lg: 0 30px 70px -30px rgb(64 40 140 / 0.45);
+  --shadow-primary: 0 12px 26px -12px rgb(106 82 201 / 0.7);
+  --shadow-focus: 0 0 0 3px rgb(106 82 201 / 0.3);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+
+/* Reduced motion: every duration collapses, so transitions stop too. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+  }
+}
