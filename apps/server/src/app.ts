@@ -57,6 +57,12 @@ export function createApp({ config, db, now = () => new Date(), loadTemplate = d
       res.status(400).json({ error: 'invalid-body' });
       return;
     }
+    // A path the router cannot decode (bad percent-encoding in /k/, /api/k/ or /m/): the client's mistake. Not logged:
+    // its message quotes the path, and so a share or creator token.
+    if (err instanceof URIError || (typeof err === 'object' && err !== null && 'status' in err && err.status === 400)) {
+      res.status(400).json({ error: 'bad-request' });
+      return;
+    }
     // Never the raw error: a failed query's message carries its bound values (names people typed).
     console.error('request failed', safeErrorText(err));
     res.status(500).json({ error: 'internal' });

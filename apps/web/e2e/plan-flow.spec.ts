@@ -334,6 +334,14 @@ test('a creator signed out saves the plan to an account, and finds it in “Kèo
   await expect(page.locator('[data-id=save-card]')).toHaveCount(0);
   await expect(page.locator('[data-id=claim-error]')).toHaveCount(0);
 
+  // Saved: the account is the key. The owner sees the new manage link and can change it again.
+  const manageCard = page.locator('[data-id=manage-card]');
+  await expect(manageCard).toContainText('chỉ tài khoản này quản lý được kèo');
+  const savedLink = await manageCard.locator('[data-id=manage-url]').textContent();
+  await manageCard.locator('[data-id=manage-rotate]').click();
+  await expect(manageCard.locator('[data-id=manage-rotated]')).toHaveText('Đã đổi link quản lý. Link cũ không dùng được nữa, nhớ chép link mới.');
+  await expect(manageCard.locator('[data-id=manage-url]')).not.toHaveText(savedLink ?? '');
+
   // Another device, signed in to the same account: no cookie of the plan, yet it is listed and opens.
   const laptopContext = await browser.newContext({ baseURL, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' });
   const laptop = await laptopContext.newPage();

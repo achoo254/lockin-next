@@ -41,16 +41,17 @@ describe('tokens', () => {
     expect(production.options).toMatchObject({ httpOnly: true, sameSite: 'lax', path: '/', secure: true });
   });
 
-  it('reads one plan’s guest token, and every plan’s for the source of a new plan', () => {
+  it('reads one plan’s guest token, and every plan’s (newest first) for the source of a new plan', () => {
     const token = newToken();
     const other = newToken();
     const cookie = `lockin_session=abc; lockin_g_${PLAN.replaceAll('-', '')}=${token}; lockin_g_${'f'.repeat(32)}=${other}; lockin_g_bad=${token}; lockin_g_${'e'.repeat(32)}=short`;
     const req = { headers: { cookie } };
     expect(readGuestToken(req, dev, PLAN)).toBe(token);
     expect(readGuestToken(req, dev, 'ffffffff-ffff-ffff-ffff-fffffffffff0')).toBeNull();
+    // Browsers send the oldest cookie first.
     expect(readAllGuestTokens(req, dev)).toEqual([
-      { planId: PLAN, token },
       { planId: 'ffffffff-ffff-ffff-ffff-ffffffffffff', token: other },
+      { planId: PLAN, token },
     ]);
     // The production prefix is not read in dev and the other way round.
     expect(readAllGuestTokens(req, prod)).toEqual([]);
@@ -71,8 +72,11 @@ describe('tokens', () => {
     expect(readGuestToken(req, dev, PLAN)).toBe(guest);
     expect(readAllCreatorTokens(req, dev)).toEqual([{ planId: PLAN, token: creator }]);
     expect(readAllGuestTokens(req, dev)).toEqual([{ planId: PLAN, token: guest }]);
-    // At most 50 are read from one request.
-    const many = Array.from({ length: 60 }, (_, i) => `lockin_c_${i.toString(16).padStart(32, '0')}=${creator}`).join('; ');
-    expect(readAllCreatorTokens({ headers: { cookie: many } }, dev)).toHaveLength(50);
+    // At most 50 are read from one request: the newest (the last sent), newest first.
+    const planIdOf = (i: number): string => i.toString(16).padStart(32, '0').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+    const many = Array.from({ length: 60 }, (_, i) => `lockin_c_${planIdOf(i).replaceAll('-', '')}=${creator}`).join('; ');
+    const read = readAllCreatorTokens({ headers: { cookie: many } }, dev);
+    expect(read).toHaveLength(50);
+    expect([read[0]?.planId, read[49]?.planId]).toEqual([planIdOf(59), planIdOf(10)]);
   });
 });

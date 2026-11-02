@@ -28,6 +28,21 @@ describe('without sign-in configured', () => {
     expect(location(res)).toBe('/?login=unavailable');
   });
 
+  it('answers a path it cannot decode with a 400 and logs nothing of it', async () => {
+    const logged = [vi.spyOn(console, 'error').mockImplementation(() => undefined), vi.spyOn(console, 'warn').mockImplementation(() => undefined)];
+    try {
+      const secret = 'Zz9'.repeat(10);
+      for (const path of [`/k/${secret}%E0%A4%A`, `/api/k/${secret}%zz`, `/api/k/${secret}%E0%A4%A/join`, `/m/${secret}%`]) {
+        const res = await fetch(`${server.origin}${path}`, { method: path.endsWith('/join') ? 'POST' : 'GET', headers: { origin: server.origin } });
+        expect([path, res.status]).toEqual([path, 400]);
+        expect(await res.text()).not.toContain(secret);
+      }
+      for (const spy of logged) expect(spy).not.toHaveBeenCalled();
+    } finally {
+      for (const spy of logged) spy.mockRestore();
+    }
+  });
+
   it('answers unknown API paths with a JSON 404', async () => {
     const res = await fetch(`${server.origin}/api/nope`);
     expect(res.status).toBe(404);

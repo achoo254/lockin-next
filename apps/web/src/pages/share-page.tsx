@@ -6,13 +6,13 @@ import { useI18n } from '../i18n/i18n';
 import { SignInCard } from '../layout/sign-in-card';
 import { errorMessage } from '../plans/error-message';
 import { LoadingCard, StateCard } from '../plans/plan-parts';
-import { ClaimNotice, SavePlanCard, useClaimFromUrl } from '../plans/save-plan';
+import { ClaimNotice, ManageLinkCard, SavePlanCard, useClaimFromUrl } from '../plans/save-plan';
 import { SharePanel } from '../plans/share-panel';
 
 /**
  * /plans/<id>: send the plan's link to the group (right after making it, or later from "Kèo của tôi"). Its creator
  * gets here by account or by this browser's creator cookie; a plan made signed out also shows its manage link and the
- * offer to save it to an account.
+ * offer to save it to an account, and once saved its owner still sees (and can change) the manage link.
  */
 export function SharePage({ planId, path, session }: { planId: string; path: string; session: SessionState }): ReactNode {
   const { t, locale } = useI18n();
@@ -66,6 +66,7 @@ export function SharePage({ planId, path, session }: { planId: string; path: str
       <ClaimNotice state={claim} />
       <SharePanel plan={plan} onRotated={() => void load()} />
       <SavePlanCard plan={plan} session={session} returnPath={path} variant="full" onSaved={setPlan} />
+      <ManageLinkCard plan={plan} onRotated={setPlan} />
     </div>
   );
 }

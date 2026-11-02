@@ -35,7 +35,10 @@ export interface PlanView {
   id?: string;
   /** Only for the creator: the link to send to the group, null when it cannot be shown again (rotate it). */
   share?: ShareLink | null;
-  /** Only for the creator: the private link that hands the creator's rights to another browser; null before it existed. */
+  /**
+   * Only for the creator: the private manage link; null for a plan without a creator token (made signed in, or before
+   * manage links). Once the plan is saved to an account it only leads to the plan's page: the account is the key.
+   */
   manage?: ManageLink | null;
   /** Only for the creator: whether the plan is saved to an account (else it lives in the creator's browser only). */
   savedToAccount?: boolean;

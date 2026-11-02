@@ -24,6 +24,7 @@ afterAll(async () => {
 
 /** Creator tokens of the plans made signed out, by plan id. */
 const creatorTokens = new Map<string, string>();
+const box = shareTokenBox(randomBytes(32));
 
 /**
  * A plan made at `at` (by an account, or signed out for `null`) with `opens` first opens, `voters` guests who join
@@ -32,9 +33,9 @@ const creatorTokens = new Map<string, string>();
 async function plan(sub: string | null, at: Date, shape: { opens: number; voters: number; lurkers: number; sourcePlanId?: string }): Promise<string> {
   const { db } = database;
   const input = CreatePlanInput.parse(planBody(at.getTime(), { creatorDisplayName: 'Owner' }));
-  const created = await createPlan(db, { creatorSub: sub, input, sourcePlanId: shape.sourcePlanId ?? null, box: shareTokenBox(randomBytes(32)), now: at });
+  const created = await createPlan(db, { creatorSub: sub, input, sourcePlanId: shape.sourcePlanId ?? null, box, now: at });
   const { plan: row, shareToken, creatorToken } = created;
-  creatorTokens.set(row.id, creatorToken);
+  if (creatorToken !== null) creatorTokens.set(row.id, creatorToken);
   for (let i = 0; i < shape.opens; i++) await recordLinkOpened(db, row.id, at);
   const [option] = await db.select().from(planOptions).where(eq(planOptions.planId, row.id));
   for (let i = 0; i < shape.voters + shape.lurkers; i++) {
@@ -75,7 +76,7 @@ async function seed(): Promise<void> {
   // Two plans made signed out: one by a guest of c1's plan, kept in the browser; one saved to c4 later.
   await plan(null, t0, { opens: 2, voters: 1, lurkers: 0, sourcePlanId: first });
   const saved = await plan(null, t0, { opens: 0, voters: 0, lurkers: 0 });
-  await claimPlan(database.db, saved, 'c4', creatorTokens.get(saved) ?? null, t0);
+  await claimPlan(database.db, saved, 'c4', creatorTokens.get(saved) ?? null, box, t0);
 }
 
 describe('pnpm stats', () => {

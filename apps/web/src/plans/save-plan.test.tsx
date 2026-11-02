@@ -4,7 +4,7 @@ import type { PlanView } from '../api/plans-api';
 import type { SessionState } from '../api/session-api';
 import { I18nProvider } from '../i18n/i18n';
 import { PLAN_ID, creatorPlan, stubFetch } from '../test/plan-fixture';
-import { SavePlanCard, claimParam, claimReturnPath } from './save-plan';
+import { ManageLinkCard, SavePlanCard, claimParam, claimReturnPath } from './save-plan';
 
 const SIGNED_OUT: SessionState = { status: 'ready', signedIn: false, signInAvailable: true };
 const SIGNED_IN: SessionState = { status: 'ready', signedIn: true, signInAvailable: true, user: { name: 'A', email: null, picture: null } };
@@ -65,5 +65,38 @@ describe('saving a plan to an account', () => {
     cleanup();
     show(plan, SIGNED_OUT, 'locked');
     expect(document.querySelector('[data-id=save-card-locked]')).toBeNull();
+  });
+
+  it('changes the manage link: the new link replaces the old one on the card, with a notice', async () => {
+    const fresh = { url: `https://lockin.hoandat.com/m/${PLAN_ID}.${'N'.repeat(43)}` };
+    const api = stubFetch(() => ({ manage: fresh }));
+    const onSaved = show(creatorPlan({ savedToAccount: false, manage: MANAGE }), SIGNED_OUT, 'full');
+    expect(document.querySelector('[data-id=manage-rotate-note]')?.textContent).toContain('link cũ hết dùng ngay');
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi link quản lý' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ manage: fresh })));
+    expect(api.calls.map((c) => [c.method, c.path])).toEqual([['POST', `/api/plans/${PLAN_ID}/rotate-manage`]]);
+    expect(screen.getByRole('status').textContent).toBe('Đã đổi link quản lý. Link cũ không dùng được nữa, nhớ chép link mới.');
+  });
+
+  it('shows the owner of a saved plan its manage link and the way to change it, nobody else', () => {
+    const onRotated = vi.fn();
+    const renderCard = (plan: PlanView): void => {
+      render(
+        <I18nProvider>
+          <ManageLinkCard plan={plan} onRotated={onRotated} />
+        </I18nProvider>,
+      );
+    };
+    renderCard(creatorPlan({ savedToAccount: true, manage: MANAGE }));
+    expect(document.querySelector('[data-id=manage-card] h2')?.textContent).toBe('Link quản lý');
+    expect(document.querySelector('[data-id=manage-url]')?.textContent).toBe(MANAGE.url.replace('https://', ''));
+    expect(document.querySelector('[data-id=manage-warn]')?.textContent).toContain('chỉ tài khoản này quản lý được kèo');
+    expect(screen.getByRole('button', { name: 'Đổi link quản lý' })).toBeTruthy();
+    cleanup();
+    // Not saved yet (the save card shows it), no link (made signed in), or not the creator: nothing.
+    renderCard(creatorPlan({ savedToAccount: false, manage: MANAGE }));
+    renderCard(creatorPlan({ savedToAccount: true, manage: null }));
+    renderCard(creatorPlan({ savedToAccount: true, manage: MANAGE, viewer: { isCreator: false, participantId: null } }));
+    expect(document.querySelector('[data-id=manage-card]')).toBeNull();
   });
 });

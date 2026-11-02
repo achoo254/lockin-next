@@ -1,11 +1,13 @@
 /**
  * The creator's API: make plans, list them, read one, edit it, lock it in, cancel it, mark it done, change its share
- * link, and save it to an account. Anyone can make a plan, signed in or not. The creator is the account that owns the
- * plan, or whoever holds its creator token: the HttpOnly creator cookie of the browser that made it, or the private
- * manage link (GET /m/<plan id>.<token>), which puts that cookie in the browser that opens it.
+ * link or its manage link, and save it to an account. Anyone can make a plan, signed in or not. The creator is the
+ * account that owns the plan; a plan made signed out and not saved to an account yet is run by whoever holds its
+ * creator token: the HttpOnly creator cookie of the browser that made it, or the private manage link
+ * (GET /m/<plan id>.<token>), which puts that cookie in the browser that opens it. Once the plan is saved to an
+ * account, the account is the only key (plan-store.ts isPlanCreator).
  *
- * Creator routes answer 401 `sign-in-required` to someone signed out without the plan's creator cookie and 403
- * `not-creator` to an account that is not the plan's (and holds no creator cookie of it).
+ * Creator routes answer 401 `sign-in-required` to someone signed out who is not the plan's creator and 403
+ * `not-creator` to an account that is not.
  */
 import express, { type Request, type Response, type Router } from 'express';
 import type { ServerConfig } from '../config';
@@ -14,6 +16,7 @@ import { findAccountSub, requireAccountSub } from '../auth/require-user';
 import { HttpError } from '../http-error';
 import { dailyLimit, hourlyLimit } from './hourly-limit';
 import { ClaimInput, CreatePlanInput, LockInput, PlanId, UpdatePlanInput, parseBody } from './plan-input';
+import { putCreatorCookie } from './plan-cookie-room';
 import { deleteAt } from './plan-rules';
 import {
   type CreatorKey,
@@ -28,13 +31,14 @@ import {
   isPlanCreator,
   listCreatorPlans,
   lockPlan,
+  rotateManageLink,
   rotateShareLink,
   updatePlan,
 } from './plan-store';
 import { type CreatorLinks, type PlanView, buildPlanView, summaryView } from './plan-view';
 import { manageLink, shareLink, storedManageLink, storedShareLink } from './share-link';
 import { type ShareTokenBox, shareTokenBox } from './share-token-box';
-import { isTokenShape, readAllCreatorTokens, readAllGuestTokens, readCreatorToken, setCreatorToken } from './tokens';
+import { clearPlanCookie, isTokenShape, readAllCreatorTokens, readAllGuestTokens, readCreatorToken } from './tokens';
 
 export type { ManageLink, ShareLink } from './share-link';
 
@@ -80,13 +84,13 @@ export function creatorLinks(box: ShareTokenBox, config: ServerConfig, plan: Pla
 }
 
 /**
- * (Re)sets the creator cookie of a request that carries the plan's creator token, until the plan is deleted: its
- * lifetime follows the plan's deadline when the creator moves it.
+ * (Re)sets the creator cookie of a request that is the creator by the plan's creator token (a plan not saved to an
+ * account), until the plan is deleted: its lifetime follows the plan's deadline when the creator moves it.
  */
-export function keepCreatorCookie(res: Response, config: ServerConfig, plan: PlanRow, key: CreatorKey, at: Date): void {
+export async function keepCreatorCookie(db: Db, req: Request, res: Response, config: ServerConfig, plan: PlanRow, key: CreatorKey, at: Date): Promise<void> {
   const token = key.creatorToken;
-  if (typeof token !== 'string' || !isPlanCreator(plan, { sub: null, creatorToken: token })) return;
-  setCreatorToken(res, config, plan.id, token, deleteAt(plan.voteDeadline), at);
+  if (typeof token !== 'string' || plan.creatorSub !== null || !isPlanCreator(plan, { sub: null, creatorToken: token })) return;
+  await putCreatorCookie(db, req, res, config, { planId: plan.id, token }, deleteAt(plan.voteDeadline), at);
 }
 
 export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router {
@@ -116,9 +120,9 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
   };
 
   /** The creator's plan after a change, as the creator sees it. */
-  const answerPlan = async (res: Response, planId: string, key: CreatorKey, at: Date): Promise<void> => {
+  const answerPlan = async (req: Request, res: Response, planId: string, key: CreatorKey, at: Date): Promise<void> => {
     const plan = await findCreatorPlan(db, planId, key, at);
-    keepCreatorCookie(res, config, plan, key, at);
+    await keepCreatorCookie(db, req, res, config, plan, key, at);
     res.json({ plan: await creatorView(plan, key, at) });
   };
 
@@ -140,11 +144,11 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
       const sourcePlanId = await findJoinedPlanId(db, readAllGuestTokens(req, config));
       const { plan, shareToken, creatorToken } = await createPlan(db, { creatorSub, input, sourcePlanId, box, now: at });
       // Signed in, the account is the key; signed out, this browser's cookie (and the manage link) is.
-      if (creatorSub === null) setCreatorToken(res, config, plan.id, creatorToken, deleteAt(plan.voteDeadline), at);
+      if (creatorToken !== null) await putCreatorCookie(db, req, res, config, { planId: plan.id, token: creatorToken }, deleteAt(plan.voteDeadline), at);
       res.status(201).json({
         plan: await creatorView(plan, { sub: creatorSub, creatorToken }, at),
         share: shareLink(config.publicOrigin, shareToken),
-        manage: manageLink(config.publicOrigin, plan.id, creatorToken),
+        manage: creatorToken === null ? null : manageLink(config.publicOrigin, plan.id, creatorToken),
       });
     },
   );
@@ -159,7 +163,7 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
   router.get('/api/plans/:id', async (req, res) => {
     const at = now();
     const planId = planIdParam(req);
-    await answerPlan(res, planId, await creatorKey(req, planId, at), at);
+    await answerPlan(req, res, planId, await creatorKey(req, planId, at), at);
   });
 
   router.patch('/api/plans/:id', async (req, res) => {
@@ -167,7 +171,7 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
     const planId = planIdParam(req);
     const key = await creatorKey(req, planId, at);
     await updatePlan(db, planId, key, parseBody(UpdatePlanInput, req.body), at);
-    await answerPlan(res, planId, key, at);
+    await answerPlan(req, res, planId, key, at);
   });
 
   router.post('/api/plans/:id/lock', async (req, res) => {
@@ -175,7 +179,7 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
     const planId = planIdParam(req);
     const key = await creatorKey(req, planId, at);
     await lockPlan(db, planId, key, parseBody(LockInput, req.body), at);
-    await answerPlan(res, planId, key, at);
+    await answerPlan(req, res, planId, key, at);
   });
 
   for (const [path, outcome] of [
@@ -187,7 +191,7 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
       const planId = planIdParam(req);
       const key = await creatorKey(req, planId, at);
       await finishPlan(db, planId, key, outcome, at);
-      await answerPlan(res, planId, key, at);
+      await answerPlan(req, res, planId, key, at);
     });
   }
 
@@ -198,17 +202,33 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
     res.json({ share: shareLink(config.publicOrigin, token) });
   });
 
+  // A new manage link: the old one, and the creator cookie of every other browser, stop working.
+  router.post('/api/plans/:id/rotate-manage', async (req, res) => {
+    const at = now();
+    const planId = planIdParam(req);
+    const key = await creatorKey(req, planId, at);
+    const token = await rotateManageLink(db, planId, key, box, at);
+    const plan = await findCreatorPlan(db, planId, { sub: key.sub, creatorToken: token }, at);
+    // This browser keeps managing by cookie when that is how it got in (the plan has no account yet).
+    await keepCreatorCookie(db, req, res, config, plan, { sub: null, creatorToken: token }, at);
+    res.json({ manage: manageLink(config.publicOrigin, plan.id, token) });
+  });
+
+  // From here on the account is the plan's key: the creator token is replaced (claimPlan) and this browser's creator
+  // cookie of the plan goes.
   router.post('/api/plans/:id/claim', async (req, res) => {
     const at = now();
     const sub = await requireAccountSub(req, config, db, at);
     const planId = planIdParam(req);
     const { token } = parseBody(ClaimInput, req.body);
-    const creatorToken = token ?? readCreatorToken(req, config, planId);
-    await claimPlan(db, planId, sub, creatorToken, at);
-    await answerPlan(res, planId, { sub, creatorToken }, at);
+    await claimPlan(db, planId, sub, token ?? readCreatorToken(req, config, planId), box, at);
+    clearPlanCookie(res, config, 'c', planId);
+    await answerPlan(req, res, planId, { sub }, at);
   });
 
-  // The manage link: hands this browser the creator cookie, then goes to the plan without the token in the address.
+  // The manage link: hands this browser the creator cookie, then goes to the plan without the token in the address. The
+  // link of a plan saved to an account sets no cookie (the account is the key) and goes to the plan's creator page,
+  // which asks to sign in: the link's holder may not be in the group, so the share link is not revealed.
   router.get('/m/:link', async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
     const at = now();
@@ -219,7 +239,11 @@ export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router 
       res.redirect(303, '/?manage=invalid');
       return;
     }
-    setCreatorToken(res, config, plan.id, link.token, deleteAt(plan.voteDeadline), at);
+    if (plan.creatorSub !== null) {
+      res.redirect(303, `/plans/${plan.id}`);
+      return;
+    }
+    await putCreatorCookie(db, req, res, config, { planId: plan.id, token: link.token }, deleteAt(plan.voteDeadline), at);
     const share = storedShareLink(box, config.publicOrigin, plan);
     res.redirect(303, share ? `/k/${share.token}` : `/plans/${plan.id}`);
   });

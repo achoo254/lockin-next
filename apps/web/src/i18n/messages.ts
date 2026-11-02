@@ -134,7 +134,7 @@ export const vi = {
 
   'save.title': 'Giữ quyền quản lý kèo',
   'save.text': 'Bạn chưa đăng nhập nên kèo này được giữ trên trình duyệt này. Chép link quản lý để mở kèo trên máy khác, hoặc lưu kèo vào tài khoản cho chắc.',
-  'save.signedInText': 'Kèo này mới được giữ trên trình duyệt này. Lưu vào tài khoản của bạn để quản lý trên máy nào cũng được.',
+  'save.signedInText': 'Kèo này mới được giữ trên trình duyệt này. Lưu vào tài khoản của bạn để quản lý trên máy nào cũng được. Lưu rồi thì chỉ tài khoản của bạn quản lý được kèo: link quản lý cũ hết dùng.',
   'save.link': 'Link quản lý kèo',
   'save.copy': 'Chép link quản lý',
   'save.copied': 'Đã chép link quản lý',
@@ -145,7 +145,13 @@ export const vi = {
   'save.lockedTitle': 'Chốt xong rồi! Giữ kèo này lại nhé',
   'save.lockedText': 'Lưu vào tài khoản {domain} để xem lại kèo này và lên kèo sau nhanh hơn, trên máy nào cũng được.',
   'claim.busy': 'Đang lưu kèo vào tài khoản của bạn…',
-  'manage.invalid': 'Link quản lý này không dùng được nữa: kèo đã bị xoá hoặc link bị chép thiếu.',
+  'manage.invalid': 'Link quản lý này không dùng được nữa: link đã được đổi (kèo lưu vào tài khoản cũng đổi link), kèo đã bị xoá, hoặc link bị chép thiếu.',
+  'manage.rotate': 'Đổi link quản lý',
+  'manage.rotating': 'Đang đổi link…',
+  'manage.rotateNote': 'Lỡ gửi link quản lý cho người khác? Bấm "Đổi link quản lý": link cũ hết dùng ngay, máy nào đang quản lý bằng link cũ cũng mất quyền.',
+  'manage.rotated': 'Đã đổi link quản lý. Link cũ không dùng được nữa, nhớ chép link mới.',
+  'manage.savedTitle': 'Link quản lý',
+  'manage.savedText': 'Kèo đã lưu vào tài khoản của bạn nên chỉ tài khoản này quản lý được kèo. Link quản lý chỉ mở trang quản lý; ai mở cũng phải đăng nhập đúng tài khoản.',
   'manage.lockedTitle': 'Kèo này đang được quản lý ở máy khác',
   'manage.lockedText': 'Mở link quản lý của kèo trên trình duyệt này, hoặc đăng nhập nếu bạn đã lưu kèo vào tài khoản.',
 
@@ -280,6 +286,7 @@ export const vi = {
   'error.forbidden-origin': 'Trang đang mở từ địa chỉ lạ. Mở lại app rồi thử lại nhé.',
   'error.name-required': 'Nhập tên của bạn trong kèo nhé.',
   'error.plan-owned': 'Kèo này đã được lưu vào một tài khoản khác.',
+  'error.no-manage-link': 'Kèo này không có link quản lý: tài khoản của bạn là chìa khoá.',
   'error.network': 'Không kết nối được. Kiểm tra mạng rồi thử lại nhé.',
   'error.generic': 'Có lỗi xảy ra. Thử lại sau ít phút nhé.',
 
@@ -427,7 +434,7 @@ export const en: Messages = {
 
   'save.title': 'Keep managing your plan',
   'save.text': 'You are not signed in, so this plan is kept in this browser. Copy the manage link to open it on another device, or save the plan to an account to be safe.',
-  'save.signedInText': 'This plan is only kept in this browser so far. Save it to your account to manage it from any device.',
+  'save.signedInText': 'This plan is only kept in this browser so far. Save it to your account to manage it from any device. Once saved, only your account can manage it: the old manage link stops working.',
   'save.link': 'Plan manage link',
   'save.copy': 'Copy manage link',
   'save.copied': 'Manage link copied',
@@ -438,7 +445,13 @@ export const en: Messages = {
   'save.lockedTitle': 'Locked in! Keep this plan',
   'save.lockedText': 'Save it to a {domain} account to find this plan again and start the next one faster, from any device.',
   'claim.busy': 'Saving the plan to your account…',
-  'manage.invalid': 'This manage link no longer works: the plan was deleted or the link was copied incompletely.',
+  'manage.invalid': 'This manage link no longer works: the link was changed (saving the plan to an account changes it too), the plan was deleted, or the link was copied incompletely.',
+  'manage.rotate': 'Change manage link',
+  'manage.rotating': 'Changing the link…',
+  'manage.rotateNote': 'Sent the manage link to the wrong person? Press "Change manage link": the old link stops working at once, and every device that got in with it loses access.',
+  'manage.rotated': 'Manage link changed. The old link no longer works, so copy the new one.',
+  'manage.savedTitle': 'Manage link',
+  'manage.savedText': 'This plan is saved to your account, so only this account can manage it. The manage link only opens the management page; whoever opens it must sign in with the right account.',
   'manage.lockedTitle': 'This plan is managed from another device',
   'manage.lockedText': 'Open the plan’s manage link in this browser, or sign in if you saved the plan to your account.',
 
@@ -573,6 +586,7 @@ export const en: Messages = {
   'error.forbidden-origin': 'The page was opened from an unexpected address. Open the app again and retry.',
   'error.name-required': 'Type your name for the plan.',
   'error.plan-owned': 'This plan is already saved to another account.',
+  'error.no-manage-link': 'This plan has no manage link: your account is its key.',
   'error.network': 'Could not connect. Check your connection and try again.',
   'error.generic': 'Something went wrong. Try again in a few minutes.',
 

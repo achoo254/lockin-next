@@ -10,7 +10,12 @@ export interface PlanAnswer {
 
 export interface CreatedPlan extends PlanAnswer {
   share: ShareLink;
-  manage: ManageLink;
+  /** Only for a plan made signed out. */
+  manage: ManageLink | null;
+}
+
+function isPast(date: string | undefined): boolean {
+  return date !== undefined && Date.parse(date) <= Date.now();
 }
 
 /** Keeps the cookies the server sets, like a browser (one per name, deleted when expired). */
@@ -41,7 +46,8 @@ export class Browser {
       const [pair = '', ...attributes] = header.split(';');
       const eq = pair.indexOf('=');
       const name = pair.slice(0, eq).trim();
-      const expired = attributes.some((a) => /^\s*max-age=0\s*$/i.test(a));
+      // Max-Age=0, or an Expires in the past (express's clearCookie).
+      const expired = attributes.some((a) => /^\s*max-age=0\s*$/i.test(a) || isPast(/^\s*expires=(.*)$/i.exec(a)?.[1]));
       if (expired) this.cookies.delete(name);
       else this.cookies.set(name, pair.slice(eq + 1).trim());
     }

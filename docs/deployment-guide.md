@@ -140,7 +140,12 @@ ssh <alias> 'cd /var/www/lockin && ls -1dt releases/*/'          # chọn bản 
 ssh <alias> 'cd /var/www/lockin && ln -sfn releases/<bản trước> current && systemctl restart lockin-server'
 ```
 
-Migration chỉ thêm bảng/cột; bản cũ chạy được trên schema mới.
+Luật migration: **bản trước phải chạy được trên schema sau migration**, vì release hỏng tự quay về bản trước mà không
+lùi migration. Thêm bảng/cột (có default hoặc cho phép null) và nới ràng buộc thì an toàn. Ràng buộc mới mà bản trước
+có thể vi phạm khi ghi phải đi kèm cách giữ bản trước chạy được: ví dụ `0003_guest-creators.sql` thêm cột
+`participants.is_creator` với hai CHECK mà bản trước không biết, nên kèm trigger `BEFORE INSERT` tự đánh dấu hàng người
+tạo do bản trước ghi; test `apps/server/src/db/guest-creators-migration.test.ts` chạy đúng các câu insert của bản trước
+trên schema mới. Đổi tên/xoá cột hay bảng mà bản trước còn đọc thì tách làm hai release.
 
 Gỡ hẳn app: `systemctl disable --now lockin-server`, xoá `/etc/nginx/conf.d/lockin.hoandat.com.conf` (`nginx -t` rồi
 reload), xoá bản ghi DNS, gỡ `LOCKIN_WEB_*` trên IdP.

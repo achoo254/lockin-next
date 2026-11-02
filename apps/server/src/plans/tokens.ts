@@ -27,7 +27,7 @@ export function isTokenShape(value: string | undefined): value is string {
  * guest's token, `c` the creator token of a plan made in this browser. Production uses the `__Host-` prefix (Secure,
  * Path=/, no Domain), like the session cookie.
  */
-type PlanCookieKind = 'g' | 'c';
+export type PlanCookieKind = 'g' | 'c';
 
 function cookiePrefix(config: ServerConfig, kind: PlanCookieKind): string {
   return `${config.nodeEnv === 'production' ? '__Host-' : ''}lockin_${kind}_`;
@@ -62,16 +62,24 @@ function setPlanToken(res: Response, config: ServerConfig, kind: PlanCookieKind,
 
 /**
  * Most per-plan cookies of one kind read from a request (when a plan is made, and for "Kèo của tôi"): keeps the work
- * per request small, and a browser in that many plans is not a person's first plan anyway.
+ * per request small, and a browser in that many plans is not a person's first plan anyway. The newest are read.
  */
 export const MAX_PLAN_COOKIES = 50;
 
-/** The cookies of one kind in the request: plan id (with dashes) and token. */
-function readAllPlanTokens(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig, kind: PlanCookieKind): Array<{ planId: string; token: string }> {
+export interface PlanCookie {
+  /** The plan id, with dashes. */
+  planId: string;
+  token: string;
+}
+
+/**
+ * Every cookie of one kind in the request, oldest first: browsers send cookies of the same path in the order they
+ * were made (RFC 6265 5.4), and replacing a cookie keeps its place.
+ */
+export function listPlanCookies(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig, kind: PlanCookieKind): PlanCookie[] {
   const prefix = cookiePrefix(config, kind);
-  const found: Array<{ planId: string; token: string }> = [];
+  const found: PlanCookie[] = [];
   for (const [name, value] of cookiePairs(req)) {
-    if (found.length >= MAX_PLAN_COOKIES) break;
     if (!name.startsWith(prefix) || !isTokenShape(value)) continue;
     const hex = name.slice(prefix.length);
     if (!/^[0-9a-f]{32}$/.test(hex)) continue;
@@ -79,6 +87,16 @@ function readAllPlanTokens(req: Pick<IncomingMessage, 'headers'>, config: Server
     found.push({ planId, token: value });
   }
   return found;
+}
+
+/** The newest MAX_PLAN_COOKIES cookies of one kind, newest first. */
+function readAllPlanTokens(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig, kind: PlanCookieKind): PlanCookie[] {
+  return listPlanCookies(req, config, kind).slice(-MAX_PLAN_COOKIES).reverse();
+}
+
+/** Expires the browser's cookie of one kind for the plan (same name and attributes as when it was set). */
+export function clearPlanCookie(res: Response, config: ServerConfig, kind: PlanCookieKind, planId: string): void {
+  res.clearCookie(cookieName(config, kind, planId), cookieOptions(config));
 }
 
 export function readGuestToken(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig, planId: string): string | null {
@@ -91,7 +109,7 @@ export function setGuestToken(res: Response, config: ServerConfig, planId: strin
 }
 
 /** The guest cookies of every plan this browser joined. */
-export function readAllGuestTokens(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig): Array<{ planId: string; token: string }> {
+export function readAllGuestTokens(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig): PlanCookie[] {
   return readAllPlanTokens(req, config, 'g');
 }
 
@@ -106,6 +124,6 @@ export function setCreatorToken(res: Response, config: ServerConfig, planId: str
 }
 
 /** The creator cookies of every plan made in (or handed to, by its manage link) this browser. */
-export function readAllCreatorTokens(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig): Array<{ planId: string; token: string }> {
+export function readAllCreatorTokens(req: Pick<IncomingMessage, 'headers'>, config: ServerConfig): PlanCookie[] {
   return readAllPlanTokens(req, config, 'c');
 }

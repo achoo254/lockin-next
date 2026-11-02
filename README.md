@@ -13,8 +13,9 @@ link, "Kèo của tôi" (`/plans`), nhật ký phễu và `pnpm stats` (xem [`do
 Nút "Lên kèo" ở trang chủ mở thẳng `/new`, không cần đăng nhập. Tạo khi chưa đăng nhập: trình duyệt giữ quyền người tạo
 bằng cookie `__Host-lockin_c_<id kèo>`, và người tạo nhận một **link quản lý** riêng (`/m/<id kèo>.<token>`) để mở kèo
 trên máy khác; màn gửi link và lúc chốt mời "Lưu kèo vào tài khoản hoandat.com (miễn phí)", đi qua đăng ký/đăng nhập rồi
-quay lại với `?claim=<id kèo>` để gắn kèo vào tài khoản. Tạo khi đã đăng nhập: kèo thuộc tài khoản ngay. Nút "Đăng nhập"
-ở header vẫn có cho người chưa đăng nhập.
+quay lại với `?claim=<id kèo>` để gắn kèo vào tài khoản. Đã lưu vào tài khoản thì tài khoản là chìa khoá duy nhất: link
+quản lý được thay, cookie người tạo không còn quyền. Tạo khi đã đăng nhập: kèo thuộc tài khoản ngay, không có link quản
+lý. Người tạo đổi được link quản lý trên màn gửi link. Nút "Đăng nhập" ở header vẫn có cho người chưa đăng nhập.
 
 ## Cấu trúc
 

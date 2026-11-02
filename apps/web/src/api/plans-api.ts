@@ -67,8 +67,10 @@ const PlanViewSchema = z.object({
 export type PlanView = z.infer<typeof PlanViewSchema>;
 
 const PlanAnswer = z.object({ plan: PlanViewSchema });
-const CreatedAnswer = z.object({ plan: PlanViewSchema, share: ShareLinkSchema, manage: ManageLinkSchema });
+/** `manage`: only for a plan made signed out (signed in, the account is the key). */
+const CreatedAnswer = z.object({ plan: PlanViewSchema, share: ShareLinkSchema, manage: z.nullable(ManageLinkSchema) });
 const ShareAnswer = z.object({ share: ShareLinkSchema });
+const ManageAnswer = z.object({ manage: ManageLinkSchema });
 const SummarySchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -116,16 +118,18 @@ export const joinPlan = async (token: string, displayName: string): Promise<Plan
 export const sendVotes = async (token: string, optionIds: string[]): Promise<PlanView> => (await call(PlanAnswer, guestPath(token, '/votes'), post({ optionIds }))).plan;
 export const sendRsvp = async (token: string, rsvp: Rsvp): Promise<PlanView> => (await call(PlanAnswer, guestPath(token, '/rsvp'), post({ rsvp }))).plan;
 
-export const createPlan = (input: CreatePlanInput): Promise<{ plan: PlanView; share: ShareLink; manage: ManageLink }> => call(CreatedAnswer, '/api/plans', post(input));
+export const createPlan = (input: CreatePlanInput): Promise<{ plan: PlanView; share: ShareLink; manage: ManageLink | null }> => call(CreatedAnswer, '/api/plans', post(input));
 export const listPlans = async (): Promise<PlanSummary[]> => (await call(ListAnswer, '/api/plans')).plans;
 export const fetchCreatorPlan = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id))).plan;
 export const lockPlan = async (id: string, choice: { timeOptionId?: string; placeOptionId?: string }): Promise<PlanView> =>
   (await call(PlanAnswer, planPath(id, '/lock'), post(choice))).plan;
 export const cancelPlan = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id, '/cancel'), post())).plan;
 export const markDone = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id, '/done'), post())).plan;
-/** Saves the plan to the signed-in account (this browser's creator cookie is the proof). */
+/** Saves the plan to the signed-in account (this browser's creator cookie is the proof); its manage link is replaced. */
 export const claimPlan = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id, '/claim'), post())).plan;
 export const rotateLink = async (id: string): Promise<ShareLink> => (await call(ShareAnswer, planPath(id, '/rotate-link'), post())).share;
+/** A new manage link; the old one, and every other browser it got in, stop working. */
+export const rotateManageLink = async (id: string): Promise<ManageLink> => (await call(ManageAnswer, planPath(id, '/rotate-manage'), post())).manage;
 
 /** The path of a share link (/k/<token>) from its full URL. */
 export function sharePath(url: string): string {

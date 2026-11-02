@@ -130,7 +130,9 @@ export const planOptions = pgTable(
  * Someone in a plan: a guest (recognised by the sha256 of the token in their browser cookie) or the plan's creator
  * (`is_creator`, one per plan; recognised as the plan's creator is, by account or creator token). `creator_sub` on the
  * creator's row is the account that owns the plan, when there is one. Renaming keeps the row; another browser is
- * another participant.
+ * another participant. A BEFORE INSERT trigger (migration 0003, not in this schema) marks a row inserted with
+ * `creator_sub` and no guest token as the creator, so the previous release, which never sets `is_creator`, still
+ * works on this schema after a rollback.
  */
 export const participants = pgTable(
   'participants',

@@ -13,6 +13,8 @@ import type { Db } from '../db/client';
 import { codeChallenge, newLoginState, openState, profileFromUserinfo, safeReturnPath, sealState, subFromIdToken } from './oidc-login';
 import { clearSessionCookie, readCookie, readSessionToken, setSessionCookie } from './session-cookie';
 import { safeErrorText } from '../log-error';
+import { findOwnedPlanIds } from '../plans/plan-store';
+import { clearPlanCookie, listPlanCookies } from '../plans/tokens';
 import {
   type AccountProfile,
   createSession,
@@ -183,11 +185,14 @@ export function authRoutes({ config, db, now }: AuthRoutesOptions): Router {
     }
   });
 
-  // Same-origin check applies (app.ts): a cross-site page cannot sign the person out.
+  // Same-origin check applies (app.ts): a cross-site page cannot sign the person out. The creator cookies of plans
+  // saved to an account go too: the account is those plans' key, the cookies open nothing.
   router.post('/auth/logout', async (req, res) => {
     const token = readSessionToken(req, config);
     if (token) await deleteSessionByToken(db, token);
     clearSessionCookie(res, config);
+    const held = listPlanCookies(req, config, 'c').map((cookie) => cookie.planId);
+    for (const planId of await findOwnedPlanIds(db, held)) clearPlanCookie(res, config, 'c', planId);
     res.status(204).end();
   });
 
