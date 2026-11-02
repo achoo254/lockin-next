@@ -1,20 +1,19 @@
 /* =====================================================================
-   LOCKIN DESIGN TOKENS: sticker group chat
-   The app's one designed theme (no light/dark switch): an off-white page,
-   white stickers with thick black outlines and hard offset shadows, coral
-   for what can be pressed, lime for "locked in" and highlights.
+   LOCKIN DESIGN TOKENS: night
+   The app's one designed theme (no light/dark switch): a near-black page,
+   cards a step lighter with hairlines, lime for what can be pressed and for
+   "locked in", coral (from the logo) for my own vote and the stamp.
    This file holds the ONLY colour literals of the web app (checked by
    `pnpm check:tokens` and `pnpm check:brand`); every stylesheet and
    component reads these custom properties.
 
-   Coral and lime are fills only: black text sits on them, and coral never
-   colours text on the page. `pnpm check:tokens` checks every text colour
-   on every surface and tint at WCAG AA 4.5:1, black on coral and lime,
-   and the focus ring at 3:1.
+   Coral and lime are fills only: dark text sits on them. `pnpm check:tokens`
+   checks every text colour on every surface and tint at WCAG AA 4.5:1, dark
+   on coral and lime, and the focus ring and control outlines at 3:1.
    ===================================================================== */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
   /* type: Bricolage Grotesque for titles, Be Vietnam Pro for the rest, both self-hosted with the Vietnamese
      subset (@fontsource, main.tsx) */
@@ -36,9 +35,9 @@
   --topbar-h: 60px;
   --tap: 44px;
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --radius-full: 999px;
   --dur-fast: 150ms;
   --dur-base: 220ms;
@@ -50,39 +49,46 @@
   --fs-xl: 1.44rem;
   --fs-2xl: 1.728rem;
 
-  /* page and surfaces */
-  --c-bg: #fbf8ef; /* off-white paper */
-  --c-surface: #ffffff;
-  --c-surface-subtle: #f2eedf;
-  --c-chat: #dcebff; /* the group chat behind the link preview */
+  /* page and surfaces: near-black night, cards a step lighter */
+  --c-bg: #0b0b0d;
+  --c-surface: #16161a;
+  --c-surface-subtle: #1f1f25;
+  --c-hover: #24242b; /* hover wash on surfaces */
+  --c-chat: #172030; /* the group chat behind the link preview */
+  --c-topbar: rgb(11 11 13 / 0.82); /* the page colour, see-through under the sticky header */
 
-  /* ink: text, outlines and hard shadows */
-  --c-text: #141414;
-  --c-text-muted: #4d4a42;
-  --c-on-ink: #ffffff; /* text on an ink fill (picked chip, picked segment) */
-  --c-border: #141414;
-  --c-border-subtle: #d9d3c0;
+  /* ink: text and lines */
+  --c-text: #f4f4f5;
+  --c-text-muted: #a1a1aa;
+  --c-on-ink: #0b0b0d; /* text on a light-ink fill (picked chip, picked segment) */
+  --c-border: #6a6a75; /* outline of a control (input, chip): 3:1 on every surface */
+  --c-border-subtle: #2a2a31; /* hairline of a card or a divider */
 
-  /* coral: what can be pressed (fill only, black text on it) */
-  --c-primary-solid: #ff5a4e;
-  --c-primary-solid-hover: #ff7166;
-  --c-primary-soft: #ffe1dc;
-  --c-on-primary: #141414;
-
-  /* lime: locked in and highlights (fill only, black text on it) */
+  /* lime: what can be pressed, and "locked in" (fill only, dark text on it) */
+  --c-primary-solid: #c6f432;
+  --c-primary-solid-hover: #d6fa63;
+  --c-primary-soft: #1d2409;
+  --c-on-primary: #0b0b0d;
   --c-lock: #c6f432;
-  --c-lock-soft: #ecfbb8;
+  --c-lock-soft: #1d2409;
+  --c-on-lock: #0b0b0d;
+
+  /* coral, from the logo: my own vote and the "chốt" stamp (fill only, dark text on it) */
+  --c-accent: #ff5a4e;
+  --c-accent-soft: #33140f;
+  --c-on-accent: #0b0b0d;
 
   /* status */
-  --c-warn-soft: #ffe27a;
-  --c-ok: #1d6b2f;
-  --c-error: #b3261e;
-  --c-error-soft: #ffe1dc;
-  --c-focus: #2f6bff;
-  --c-backdrop: rgb(20 20 20 / 0.5);
+  --c-warn: #e8b931; /* outline of a nudge (mark only) */
+  --c-warn-soft: #2e2710;
+  --c-ok: #7ddc8f;
+  --c-error: #ff8a80;
+  --c-error-soft: #33140f;
+  --c-focus: #7aa2ff;
+  --c-backdrop: rgb(0 0 0 / 0.6);
 
-  /* story-image templates, one per activity (plans/story-templates.ts): the background behind the title, whose ink
-     is black, or white on movie and party */
+  /* story-image templates, one per activity (plans/story-templates.ts): a bright poster on its own, whose title
+     ink is dark, or light on movie and party */
   --story-cafe: #f3d9b1;
   --story-food: #ffd23f;
   --story-movie: #1f1b4d;
@@ -93,13 +99,17 @@
   --story-party: #2b2b2b;
   --story-teambuilding: #9be37a;
   --story-meeting: #9cc3ff;
+  --story-ink: #141414;
+  --story-ink-light: #ffffff;
+  --story-paper: #ffffff;
+  --story-coral: #ff5a4e;
 
-  /* sticker lines and hard shadows */
-  --line: 2px solid var(--c-border);
-  --line-thin: 1.5px solid var(--c-border);
-  --pop: 3px 3px 0 var(--c-border);
-  --pop-sm: 2px 2px 0 var(--c-border);
-  --shadow-lg: var(--pop);
+  /* lines and depth: hairlines and soft shadows, no hard offsets */
+  --line: 1px solid var(--c-border-subtle);
+  --line-control: 1px solid var(--c-border);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 18px 48px -16px rgb(0 0 0 / 0.75);
+  --glow-primary: 0 8px 28px -10px rgb(198 244 50 / 0.55);
 }
 
 @media (min-width: 768px) {

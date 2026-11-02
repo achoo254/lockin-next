@@ -3,7 +3,7 @@
  *
  * 1. No colour literal in apps/web/src (ts, tsx, css) or apps/web/index.html outside src/ui/tokens.css.
  * 2. Every text/background pair the UI uses meets WCAG 2 AA (text 4.5:1): on every surface, and on every fill and
- *    tint that carries text (black on coral and lime); the focus ring and the sticker outline at 3:1 (non-text).
+ *    tint that carries text (dark on coral and lime); the focus ring and control outlines at 3:1 (non-text).
  *
  * Exits 1 on any failure, printing file:line for literals and the ratio of each failing pair.
  */
@@ -19,28 +19,35 @@ const SCANNED = new Set(['.ts', '.tsx', '.css']);
 const AA_TEXT = 4.5;
 const AA_NON_TEXT = 3;
 
-/** Foreground tokens and the backgrounds each must be readable on (coral and lime are never text). */
+/** Foreground tokens and the backgrounds each must be readable on (coral and lime are never text on the page). */
 const SCREEN_TEXT = ['--c-text', '--c-text-muted', '--c-error', '--c-ok'];
-const SCREEN_BACKGROUNDS = ['--c-bg', '--c-surface', '--c-surface-subtle'];
+const SCREEN_BACKGROUNDS = ['--c-bg', '--c-surface', '--c-surface-subtle', '--c-hover'];
 /** Fills and tints with text on them, and the text tokens they carry. */
 const FILLS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['--c-primary-solid', ['--c-on-primary']],
   ['--c-primary-solid-hover', ['--c-on-primary']],
   ['--c-primary-soft', ['--c-text', '--c-text-muted']],
-  ['--c-lock', ['--c-text']],
+  ['--c-lock', ['--c-on-lock']],
   ['--c-lock-soft', ['--c-text', '--c-text-muted']],
+  ['--c-accent', ['--c-on-accent']],
+  ['--c-accent-soft', ['--c-text', '--c-text-muted']],
   ['--c-warn-soft', ['--c-text']],
   ['--c-error-soft', ['--c-text', '--c-error']],
   ['--c-chat', ['--c-text']],
   ['--c-text', ['--c-on-ink']],
+  // Lime as text and icon colour on dark surfaces (the hero's highlight, the ticket's fact icons).
+  ['--c-bg', ['--c-lock']],
+  ['--c-surface-subtle', ['--c-lock']],
   // Story-image templates (plans/story-templates.ts): the title ink on each background.
-  ...['cafe', 'food', 'karaoke', 'trip', 'birthday', 'lunch', 'teambuilding', 'meeting'].map((name) => [`--story-${name}`, ['--c-text']] as const),
-  ...['movie', 'party'].map((name) => [`--story-${name}`, ['--c-on-ink']] as const),
+  ['--c-lock', ['--story-ink']],
+  ...['cafe', 'food', 'karaoke', 'trip', 'birthday', 'lunch', 'teambuilding', 'meeting'].map((name) => [`--story-${name}`, ['--story-ink']] as const),
+  ...['movie', 'party'].map((name) => [`--story-${name}`, ['--story-ink-light']] as const),
 ];
-/** Non-text marks at 3:1: the focus ring and the sticker outline on what they sit on. */
+/** Non-text marks at 3:1: the focus ring, and the outline of a control (input, vote box, link box) on what it sits on. */
 const MARKS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['--c-focus', ['--c-bg', '--c-surface', '--c-surface-subtle']],
-  ['--c-border', ['--c-bg', '--c-surface', '--c-primary-solid', '--c-lock']],
+  ['--c-border', ['--c-bg', '--c-surface', '--c-surface-subtle']],
+  ['--c-warn', ['--c-bg', '--c-surface']],
 ];
 
 async function sourceFiles(dir: string): Promise<string[]> {

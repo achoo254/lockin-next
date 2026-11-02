@@ -5,8 +5,8 @@
   "description": "Chốt kèo với bạn bè hay đồng nghiệp bằng một link: mọi người vote giờ và chỗ không cần tài khoản, bạn chốt là cả nhóm biết.",
   "colors": {
     "primary": "#ff5a4e",
-    "background": "#fbf8ef",
-    "backgroundDark": "#141414"
+    "background": "#0b0b0d",
+    "backgroundDark": "#0b0b0d"
   },
   "icon": "brand/app-icon.svg",
   "iconMaskable": "brand/app-icon-maskable.svg",

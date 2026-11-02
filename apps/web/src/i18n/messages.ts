@@ -65,6 +65,9 @@ export const vi = {
   'template.meeting': 'Họp nhóm',
 
   'form.kinds': 'Loại kèo',
+  'new.titleStart': 'Lên kèo, chốt trong',
+  'new.titleEm': '1 link.',
+  'new.lead': 'Gửi vào group, bạn bè vote không cần tài khoản.',
   'form.title': 'Kèo gì đây?',
   'form.area': 'Khu vực',
   'form.budget': 'Mỗi người khoảng',
@@ -365,6 +368,9 @@ export const en: Messages = {
   'template.meeting': 'Team meeting',
 
   'form.kinds': 'Kind of plan',
+  'new.titleStart': 'Make plans, lock them in',
+  'new.titleEm': 'one link.',
+  'new.lead': 'Drop it in the group chat. Friends vote, no account needed.',
   'form.title': 'What’s the plan?',
   'form.area': 'Area',
   'form.budget': 'About per person',

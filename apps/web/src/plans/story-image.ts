@@ -354,16 +354,16 @@ export function drawStory(ctx: CanvasRenderingContext2D, shapes: StoryShape[], c
   }
 }
 
-/** The template's colours as the page has them (tokens.css). */
+/** The template's colours from tokens.css: the poster keeps its own bright palette whatever the page's theme. */
 export function pageColours(template: StoryTemplate): StoryColours {
   const style = getComputedStyle(document.documentElement);
   const v = (name: string): string => style.getPropertyValue(name).trim();
   return {
     bg: v(template.bgToken),
-    titleInk: template.ink === 'light' ? v('--c-on-ink') : v('--c-text'),
-    ink: v('--c-text'),
-    paper: v('--c-surface'),
-    coral: v('--c-primary-solid'),
+    titleInk: template.ink === 'light' ? v('--story-ink-light') : v('--story-ink'),
+    ink: v('--story-ink'),
+    paper: v('--story-paper'),
+    coral: v('--story-coral'),
   };
 }
 

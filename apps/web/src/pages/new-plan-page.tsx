@@ -16,7 +16,12 @@ export function NewPlanPage({ session }: { session: SessionState }): ReactNode {
   if (session.status === 'loading') return <LoadingCard />;
   return (
     <div className="column">
-      <h1 className="sr-only">{t('layout.newPlan')}</h1>
+      <header className="page-head">
+        <h1 className="hero-title">
+          {t('new.titleStart')} <em>{t('new.titleEm')}</em>
+        </h1>
+        <p className="muted">{t('new.lead')}</p>
+      </header>
       <PlanForm
         defaultName={session.signedIn ? (session.user?.name ?? '') : ''}
         nameRequired={!session.signedIn}

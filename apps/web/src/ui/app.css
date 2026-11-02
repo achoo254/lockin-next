@@ -1,7 +1,7 @@
-/* The app's look, sticker group chat (plans/dattqh/reports/mockup-261102-1454-lockin-ui.html): an off-white page,
-   white stickers with 2px black outlines and hard offset shadows, coral fills for what can be pressed (black text on
-   them), lime for "locked in", Bricolage Grotesque titles over Be Vietnam Pro. Every colour comes from tokens.css
-   (checked by `pnpm check:tokens`). Phones first; the plan screens stay one column on wide screens. */
+/* The app's look, night: a near-black page, cards a step lighter with hairlines, lime for what can be pressed and
+   for "locked in", coral (from the logo) for my own vote and the stamp, tight Bricolage Grotesque titles over Be
+   Vietnam Pro. Every colour comes from tokens.css (checked by `pnpm check:tokens`). Phones first; the plan screens
+   stay one column on wide screens. */
 
 /* ---------- base ---------- */
 *,
@@ -41,7 +41,7 @@ button {
 }
 ::selection {
   background: var(--c-lock);
-  color: var(--c-text);
+  color: var(--c-on-lock);
 }
 .sr-only {
   position: absolute;
@@ -101,7 +101,9 @@ button {
   top: 0;
   z-index: 20;
   padding-top: env(safe-area-inset-top, 0px);
-  background: var(--c-bg);
+  background: var(--c-topbar);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   border-bottom: var(--line);
 }
 .topbar-inner {
@@ -124,9 +126,7 @@ button {
   display: block;
   width: 32px;
   height: 32px;
-  border: var(--line-thin);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--pop-sm);
+  border-radius: 9px;
 }
 .brand-name {
   font-family: var(--font-display);
@@ -143,14 +143,14 @@ button {
   min-width: 0;
 }
 
-/* the language switch: one sticker pill, the current language in ink */
+/* the language switch: one pill, the current language in light ink */
 .lang-switch {
   display: inline-flex;
   margin: 0;
   padding: 0;
-  border: var(--line-thin);
+  border: var(--line);
   border-radius: var(--radius-full);
-  background: var(--c-surface);
+  background: transparent;
 }
 .lang-option {
   min-width: var(--tap);
@@ -159,9 +159,9 @@ button {
   border: 0;
   border-radius: var(--radius-full);
   background: transparent;
-  color: var(--c-text);
+  color: var(--c-text-muted);
   font-size: var(--fs-xs);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.06em;
   cursor: pointer;
 }
@@ -170,8 +170,8 @@ button {
   color: var(--c-on-ink);
 }
 
-/* The shared account menu (@achoo254/app-shell AccountMenu, layout from app-shell.css) as a sticker: a lime avatar
-   with an outline, the panel with a hard shadow. */
+/* The shared account menu (@achoo254/app-shell AccountMenu, layout from app-shell.css) in the night look: a lime
+   avatar, the panel floating on a soft shadow. */
 .shell-account {
   --font-mono: var(--font-sans);
   --c-icon-muted: var(--c-text-muted);
@@ -180,24 +180,23 @@ button {
 .shell-account-trigger {
   min-height: var(--tap);
   padding: 0 var(--space-3) 0 var(--space-1);
-  border: var(--line-thin);
+  border: var(--line);
   border-radius: var(--radius-full);
-  background: var(--c-surface);
+  background: transparent;
   color: var(--c-text);
 }
 .shell-account-trigger:hover,
 .shell-account[open] > .shell-account-trigger {
-  background: var(--c-lock-soft);
+  background: var(--c-hover);
 }
 .shell-account-trigger .shell-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: var(--line-thin);
 }
 .shell-avatar-initial {
   background: var(--c-lock);
-  color: var(--c-text);
+  color: var(--c-on-lock);
   font-family: var(--font-sans);
   font-weight: 800;
 }
@@ -207,10 +206,11 @@ button {
 }
 .shell-account-panel {
   border: var(--line);
-  box-shadow: var(--pop);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 .shell-account-item:hover {
-  background: var(--c-lock-soft);
+  background: var(--c-hover);
 }
 @media (max-width: 639px) {
   .shell-account-trigger {
@@ -243,7 +243,8 @@ button {
 .foot {
   padding-top: var(--space-4);
   padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
-  border-top: var(--line-thin);
+  border-top: var(--line);
+  color: var(--c-text-muted);
 }
 .foot-inner {
   display: flex;
@@ -273,12 +274,13 @@ button {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
-  color: var(--c-text);
+  color: var(--c-text-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .foot-link[aria-current="page"] {
-  font-weight: 800;
+  color: var(--c-text);
+  font-weight: 700;
 }
 
 /* ---------- shared pieces ---------- */
@@ -318,8 +320,7 @@ button {
 .card {
   background: var(--c-surface);
   border: var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--pop);
+  border-radius: var(--radius-xl);
   padding: var(--space-4);
 }
 .eyebrow {
@@ -336,8 +337,8 @@ button {
   font-family: var(--font-display);
   font-size: var(--fs-xl);
   font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
   overflow-wrap: anywhere;
 }
 .muted {
@@ -369,8 +370,8 @@ button {
   font-weight: 700;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full);
-  border: var(--line-thin);
-  background: var(--c-surface);
+  border: var(--line);
+  background: var(--c-surface-subtle);
   color: var(--c-text);
   white-space: nowrap;
 }
@@ -378,10 +379,12 @@ button {
   background: var(--c-warn-soft);
 }
 .pill-lock {
+  border-color: var(--c-lock);
   background: var(--c-lock);
+  color: var(--c-on-lock);
 }
 
-/* buttons: stickers that press into their shadow */
+/* buttons: solid lime for the main action, quiet surfaces for the rest; a press shrinks them a touch */
 .btn {
   appearance: none;
   display: inline-flex;
@@ -389,12 +392,13 @@ button {
   justify-content: center;
   gap: var(--space-2);
   width: 100%;
-  min-height: 48px;
+  min-height: 52px;
   padding: 0 var(--space-5);
-  border: var(--line);
-  border-radius: var(--radius-full);
-  box-shadow: var(--pop);
-  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
   font-size: var(--fs-md);
   line-height: 1.2;
   text-align: center;
@@ -406,30 +410,33 @@ button {
     background-color var(--dur-fast) var(--ease-standard);
 }
 .btn:active:not([disabled]) {
-  transform: translate(3px, 3px);
-  box-shadow: none;
+  transform: scale(0.98);
 }
 .btn-primary {
   background: var(--c-primary-solid);
   color: var(--c-on-primary);
+  box-shadow: var(--glow-primary);
 }
 .btn-primary:hover {
   background: var(--c-primary-solid-hover);
 }
 .btn-ghost {
+  border-color: var(--c-border-subtle);
   background: var(--c-surface);
   color: var(--c-text);
 }
 .btn-ghost:hover {
-  background: var(--c-lock-soft);
+  background: var(--c-hover);
 }
 .btn.is-done {
   background: var(--c-lock);
+  color: var(--c-on-lock);
 }
 .btn-sm {
   width: auto;
   min-height: var(--tap);
   padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
   font-size: var(--fs-sm);
 }
 .btn-text {
@@ -440,6 +447,9 @@ button {
   box-shadow: none;
   background: none;
   color: var(--c-text);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0;
   font-size: var(--fs-sm);
   text-decoration: underline;
 }
@@ -472,7 +482,7 @@ button {
   cursor: pointer;
 }
 .icon-btn:hover {
-  background: var(--c-lock-soft);
+  background: var(--c-hover);
 }
 .spin {
   animation: spin 0.8s linear infinite;
@@ -485,7 +495,7 @@ button {
 
 .alert {
   padding: var(--space-3) var(--space-4);
-  border: var(--line-thin);
+  border: var(--line);
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
   font-weight: 500;
@@ -511,7 +521,8 @@ button {
   flex: 1;
   min-width: 0;
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--c-text-muted);
 }
 .field-row {
   display: flex;
@@ -521,13 +532,17 @@ button {
   width: 100%;
   min-height: 48px;
   padding: 0 var(--space-4);
-  border: var(--line);
+  border: var(--line-control);
   border-radius: var(--radius-md);
   background: var(--c-surface);
   color: var(--c-text);
   font: inherit;
   font-size: var(--fs-md);
   font-weight: 500;
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+.in:focus {
+  border-color: var(--c-primary-solid);
 }
 .in::placeholder {
   color: var(--c-text-muted);
@@ -535,7 +550,6 @@ button {
 .in-sm {
   min-height: var(--tap);
   padding: 0 var(--space-2);
-  border-width: 1.5px;
   font-size: var(--fs-sm);
   min-width: 0;
 }
@@ -554,7 +568,8 @@ button {
   right: var(--space-4);
   top: 50%;
   transform: translateY(-50%);
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--c-text-muted);
 }
 .group {
   display: flex;
@@ -574,17 +589,21 @@ button {
   padding: 0;
 }
 .sec-title {
-  font-size: var(--fs-md);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
   font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--c-text);
 }
 
-/* chips: one scrollable row, picked ones in ink */
+/* chips: one scrollable row, picked ones filled in light ink */
 .chips {
   display: flex;
   gap: var(--space-2);
   overflow-x: auto;
   padding: 2px 4px var(--space-2) 2px;
   scrollbar-width: thin;
+  scrollbar-color: var(--c-border-subtle) transparent;
 }
 .chip {
   flex: none;
@@ -592,21 +611,24 @@ button {
   padding: 0 var(--space-4);
   border: var(--line);
   border-radius: var(--radius-full);
-  box-shadow: var(--pop-sm);
   background: var(--c-surface);
   color: var(--c-text);
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.chip:hover:not([disabled]):not([aria-pressed="true"]) {
+  background: var(--c-hover);
 }
 .chip[aria-pressed="true"] {
+  border-color: var(--c-text);
   background: var(--c-text);
   color: var(--c-on-ink);
 }
 .chip[disabled] {
   opacity: 0.45;
-  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -629,8 +651,7 @@ button {
   padding: var(--space-2) var(--space-3);
   overflow: hidden;
   border: var(--line);
-  border-radius: var(--radius-md);
-  box-shadow: var(--pop-sm);
+  border-radius: var(--radius-lg);
   background: var(--c-surface);
   color: var(--c-text);
   font: inherit;
@@ -648,9 +669,9 @@ button.opt[disabled] {
   flex: none;
   width: 24px;
   height: 24px;
-  border: var(--line);
-  border-radius: 6px;
-  background: var(--c-surface);
+  border: var(--line-control);
+  border-radius: 7px;
+  background: transparent;
 }
 .opt .box .icon {
   width: 14px;
@@ -659,17 +680,23 @@ button.opt[disabled] {
 }
 .opt[aria-pressed="true"],
 .opt.is-picked {
-  background: var(--c-primary-soft);
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
 }
 .opt[aria-pressed="true"] .box,
 .opt.is-picked .box {
-  background: var(--c-primary-solid);
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
 }
 .opt.win {
+  border-color: var(--c-lock);
   background: var(--c-lock-soft);
 }
 .opt.win .box {
+  border-color: var(--c-lock);
   background: var(--c-lock);
+  color: var(--c-on-lock);
 }
 .opt .lbl {
   flex: 1;
@@ -689,7 +716,6 @@ button.opt[disabled] {
   flex: none;
   min-width: 28px;
   padding: 0 var(--space-1);
-  border: var(--line-thin);
   border-radius: var(--radius-full);
   background: var(--c-surface-subtle);
   font-size: var(--fs-sm);
@@ -701,8 +727,11 @@ button.opt[disabled] {
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 4px;
-  background: var(--c-primary-solid);
+  height: 3px;
+  background: var(--c-accent);
+}
+.opt.win .bar {
+  background: var(--c-lock);
 }
 .opt-edit {
   gap: var(--space-2);
@@ -749,7 +778,6 @@ button.opt[disabled] {
   padding: 0 var(--space-2);
   border: var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--pop-sm);
   background: var(--c-surface);
   color: var(--c-text);
   font-size: var(--fs-xs);
@@ -759,13 +787,13 @@ button.opt[disabled] {
   line-height: 1.1;
 }
 .map-link:hover {
-  background: var(--c-lock-soft);
+  background: var(--c-hover);
 }
 .map-link span {
   white-space: nowrap;
 }
 .icon.accent {
-  color: var(--c-text);
+  color: var(--c-lock);
 }
 .addrow {
   display: flex;
@@ -774,16 +802,17 @@ button.opt[disabled] {
   gap: var(--space-2);
   width: 100%;
   min-height: var(--tap);
-  border: 2px dashed var(--c-border);
+  border: 1px dashed var(--c-border);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--c-text);
+  color: var(--c-text-muted);
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 .addrow:hover {
-  background: var(--c-lock-soft);
+  background: var(--c-hover);
+  color: var(--c-text);
 }
 
 /* the going switch */
@@ -823,7 +852,9 @@ button.opt[disabled] {
   margin-top: var(--space-2);
   padding: var(--space-3) var(--gutter) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   border-top: var(--line);
-  background: var(--c-bg);
+  background: var(--c-topbar);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 .help {
   font-size: var(--fs-xs);
@@ -846,7 +877,7 @@ button.opt[disabled] {
   gap: var(--space-2);
   max-width: 100%;
   padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
-  border: var(--line-thin);
+  border: var(--line);
   border-radius: var(--radius-full);
   background: var(--c-surface);
   font-size: var(--fs-sm);
@@ -859,9 +890,9 @@ button.opt[disabled] {
   flex: none;
   width: 24px;
   height: 24px;
-  border: var(--line-thin);
   border-radius: var(--radius-full);
   background: var(--c-lock);
+  color: var(--c-on-lock);
   font-style: normal;
   font-size: var(--fs-xs);
   font-weight: 800;
@@ -885,7 +916,7 @@ button.opt[disabled] {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  background: var(--c-warn-soft);
+  border-color: var(--c-warn);
   font-size: var(--fs-sm);
 }
 .invite {
@@ -920,11 +951,19 @@ button.opt[disabled] {
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-3);
-  border: 2px dashed var(--c-border);
+  border: 1px dashed var(--c-border);
   border-radius: var(--radius-md);
   font-size: var(--fs-sm);
   font-weight: 700;
   text-align: center;
+}
+
+/* the title over the create form */
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
 }
 
 /* ---------- home ---------- */
@@ -941,18 +980,14 @@ button.opt[disabled] {
 }
 .hero-title {
   font-family: var(--font-display);
-  font-size: var(--fs-2xl);
+  font-size: 2.25rem;
   font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
 }
 .hero-title em {
   font-style: normal;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--c-lock);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  color: var(--c-lock);
 }
 .samples {
   display: flex;
@@ -963,13 +998,11 @@ button.opt[disabled] {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  transform: rotate(-2deg);
 }
 .sample-work {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  transform: rotate(1.5deg);
 }
 .sample-work strong {
   font-size: var(--fs-sm);
@@ -1000,10 +1033,9 @@ button.opt[disabled] {
   place-items: center;
   width: 28px;
   height: 28px;
-  border: var(--line-thin);
   border-radius: var(--radius-full);
   background: var(--c-lock);
-  color: var(--c-text);
+  color: var(--c-on-lock);
   font-weight: 800;
 }
 @media (min-width: 900px) {
@@ -1027,8 +1059,8 @@ button.opt[disabled] {
     grid-area: hero;
   }
   .hero-title {
-    font-size: clamp(2.5rem, 4.5vw, 3.5rem);
-    line-height: 1.05;
+    font-size: clamp(2.75rem, 5vw, 4rem);
+    line-height: 1;
   }
   .hero-lead {
     font-size: var(--fs-lg);
@@ -1068,9 +1100,8 @@ button.opt[disabled] {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  border: var(--line);
+  border: var(--line-control);
   border-radius: var(--radius-md);
-  box-shadow: var(--pop-sm);
   background: var(--c-surface);
 }
 .linkbox code {
@@ -1093,7 +1124,7 @@ button.opt[disabled] {
   max-width: 92%;
   margin-left: auto;
   padding: var(--space-3);
-  border: var(--line-thin);
+  border: var(--line);
   border-radius: var(--radius-md);
   background: var(--c-surface);
   font-size: var(--fs-sm);
@@ -1102,7 +1133,7 @@ button.opt[disabled] {
 .og {
   margin-top: var(--space-2);
   overflow: hidden;
-  border: var(--line-thin);
+  border: var(--line);
   border-radius: var(--radius-sm);
 }
 .og-img {
@@ -1113,6 +1144,7 @@ button.opt[disabled] {
   min-height: 110px;
   padding: var(--space-3);
   background: var(--c-lock);
+  color: var(--c-on-lock);
   font-family: var(--font-display);
   font-size: var(--fs-lg);
   font-weight: 800;
@@ -1120,7 +1152,6 @@ button.opt[disabled] {
 .og-img img {
   width: 56px;
   height: 56px;
-  border: var(--line-thin);
   border-radius: var(--radius-md);
 }
 .og-txt {
@@ -1142,7 +1173,7 @@ button.opt[disabled] {
   overflow: hidden;
   border: var(--line);
   border-radius: var(--radius-xl);
-  box-shadow: var(--pop);
+  box-shadow: var(--shadow-lg);
   background: var(--c-surface);
 }
 .ticket-head {
@@ -1150,14 +1181,13 @@ button.opt[disabled] {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-5) var(--space-4) var(--space-4);
-  border-bottom: var(--line);
   background: var(--c-lock);
+  color: var(--c-on-lock);
 }
 .ticket-head img {
   flex: none;
   width: 52px;
   height: 52px;
-  border: var(--line-thin);
   border-radius: var(--radius-md);
 }
 .ticket-head img.ticket-sticker {
@@ -1186,11 +1216,10 @@ button.opt[disabled] {
   top: var(--space-3);
   right: var(--space-3);
   padding: 2px var(--space-2);
-  border: var(--line);
   border-radius: var(--radius-sm);
-  box-shadow: var(--pop-sm);
-  background: var(--c-primary-solid);
-  color: var(--c-on-primary);
+  box-shadow: var(--shadow-sm);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
   font-family: var(--font-display);
   font-size: var(--fs-sm);
   font-weight: 800;
@@ -1212,7 +1241,7 @@ button.opt[disabled] {
 }
 .tear {
   margin: 0 var(--space-4);
-  border-top: 2px dashed var(--c-border);
+  border-top: 1px dashed var(--c-border);
 }
 .ticket-body {
   display: grid;
@@ -1230,9 +1259,9 @@ button.opt[disabled] {
   flex: none;
   width: 36px;
   height: 36px;
-  border: var(--line-thin);
   border-radius: var(--radius-md);
-  background: var(--c-lock-soft);
+  background: var(--c-surface-subtle);
+  color: var(--c-lock);
 }
 .fact b {
   display: block;
@@ -1259,8 +1288,7 @@ button.opt[disabled] {
   gap: var(--space-3);
   padding: var(--space-5);
   border: var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--pop);
+  border-radius: var(--radius-xl);
   background: var(--c-surface);
   text-align: center;
 }
@@ -1269,7 +1297,6 @@ button.opt[disabled] {
   place-items: center;
   width: 56px;
   height: 56px;
-  border: var(--line-thin);
   border-radius: var(--radius-full);
   background: var(--c-surface-subtle);
 }
@@ -1347,9 +1374,7 @@ button.opt[disabled] {
 .sign-in-mark {
   width: 72px;
   height: 72px;
-  border: var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--pop);
 }
 .sign-in-title {
   font-family: var(--font-display);
