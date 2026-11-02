@@ -2,15 +2,15 @@
  * `pnpm check:tokens`: design-token guard of the web app.
  *
  * 1. No colour literal in apps/web/src (ts, tsx, css) or apps/web/index.html outside src/ui/tokens.css.
- * 2. Every text/background pair the UI uses meets WCAG 2 AA (text 4.5:1): on every surface, on the chips that carry
- *    text, on the alert tints; white on the solid buttons; the form-control outline at 3:1 (non-text).
+ * 2. Every text/background pair the UI uses meets WCAG 2 AA (text 4.5:1): on every surface, and on every fill and
+ *    tint that carries text (black on coral and lime); the focus ring and the sticker outline at 3:1 (non-text).
  *
  * Exits 1 on any failure, printing file:line for literals and the ratio of each failing pair.
  */
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type LiteralViolation, type TokenMap, contrastRatio, findColourLiterals, mixHex, parseTokens } from './token-contrast';
+import { type LiteralViolation, type TokenMap, contrastRatio, findColourLiterals, parseTokens } from './token-contrast';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = path.join(ROOT, 'apps/web');
@@ -19,20 +19,28 @@ const SCANNED = new Set(['.ts', '.tsx', '.css']);
 const AA_TEXT = 4.5;
 const AA_NON_TEXT = 3;
 
-/** Foreground tokens and the backgrounds each must be readable on. */
-const SCREEN_TEXT = ['--c-text', '--c-text-muted', '--c-primary', '--c-accent-text', '--c-error', '--c-info'];
-const SCREEN_BACKGROUNDS = ['--c-bg', '--c-bg-deep', '--c-surface', '--c-surface-subtle', '--c-surface-raised', '--c-topbar'];
-/** Chips with text on them, and the text tokens they carry. */
-const CHIPS: ReadonlyArray<readonly [string, readonly string[]]> = [
-  ['--c-chip-violet', ['--c-text', '--c-primary']],
-  ['--c-chip-pink', ['--c-text', '--c-accent-text']],
-  ['--c-chip-mint', ['--c-text']],
-  ['--c-accent-soft', ['--c-text', '--c-text-muted']],
+/** Foreground tokens and the backgrounds each must be readable on (coral and lime are never text). */
+const SCREEN_TEXT = ['--c-text', '--c-text-muted', '--c-error', '--c-ok'];
+const SCREEN_BACKGROUNDS = ['--c-bg', '--c-surface', '--c-surface-subtle'];
+/** Fills and tints with text on them, and the text tokens they carry. */
+const FILLS: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ['--c-primary-solid', ['--c-on-primary']],
+  ['--c-primary-solid-hover', ['--c-on-primary']],
+  ['--c-primary-soft', ['--c-text', '--c-text-muted']],
+  ['--c-lock', ['--c-text']],
+  ['--c-lock-soft', ['--c-text', '--c-text-muted']],
+  ['--c-warn-soft', ['--c-text']],
+  ['--c-error-soft', ['--c-text', '--c-error']],
+  ['--c-chat', ['--c-text']],
+  ['--c-text', ['--c-on-ink']],
+  // Story-image templates (plans/story-templates.ts): the title ink on each background.
+  ...['cafe', 'food', 'karaoke', 'trip', 'birthday', 'lunch', 'teambuilding', 'meeting'].map((name) => [`--story-${name}`, ['--c-text']] as const),
+  ...['movie', 'party'].map((name) => [`--story-${name}`, ['--c-on-ink']] as const),
 ];
-/** Alert tints (app.css: color-mix of the tone over the surface) and the share of the tone. */
-const TINTS: ReadonlyArray<readonly [string, number]> = [
-  ['--c-error', 0.08],
-  ['--c-info', 0.08],
+/** Non-text marks at 3:1: the focus ring and the sticker outline on what they sit on. */
+const MARKS: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ['--c-focus', ['--c-bg', '--c-surface', '--c-surface-subtle']],
+  ['--c-border', ['--c-bg', '--c-surface', '--c-primary-solid', '--c-lock']],
 ];
 
 async function sourceFiles(dir: string): Promise<string[]> {
@@ -64,10 +72,8 @@ function pairs(tokens: TokenMap): Array<readonly [string, string, string, number
   const v = (name: string): string => value(tokens, name);
   const list: Array<readonly [string, string, string, number]> = [];
   for (const fg of SCREEN_TEXT) for (const bg of SCREEN_BACKGROUNDS) list.push([`${fg} on ${bg}`, v(fg), v(bg), AA_TEXT]);
-  for (const [chip, texts] of CHIPS) for (const fg of texts) list.push([`${fg} on ${chip}`, v(fg), v(chip), AA_TEXT]);
-  for (const [tone, share] of TINTS) list.push([`--c-text on the ${tone} alert`, v('--c-text'), mixHex(v(tone), v('--c-surface'), share), AA_TEXT]);
-  for (const bg of ['--c-primary-solid', '--c-primary-solid-hover']) list.push([`--c-on-primary on ${bg}`, v('--c-on-primary'), v(bg), AA_TEXT]);
-  for (const bg of ['--c-surface', '--c-surface-subtle']) list.push([`--c-border-strong (outline) on ${bg}`, v('--c-border-strong'), v(bg), AA_NON_TEXT]);
+  for (const [fill, texts] of FILLS) for (const fg of texts) list.push([`${fg} on ${fill}`, v(fg), v(fill), AA_TEXT]);
+  for (const [mark, backgrounds] of MARKS) for (const bg of backgrounds) list.push([`${mark} (mark) on ${bg}`, v(mark), v(bg), AA_NON_TEXT]);
   return list;
 }
 

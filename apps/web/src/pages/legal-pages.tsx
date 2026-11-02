@@ -21,6 +21,7 @@ export type LegalPageKind = 'privacy' | 'terms' | 'credits';
 
 
 const APP_ICON_LICENCE = 'AI-generated (OpenAI gpt-image-2) for the hoandat ecosystem; owned by hoandat, all rights reserved (not CC0).';
+const STICKER_LICENCE = 'AI-generated (OpenAI gpt-image) for the hoandat ecosystem; owned by hoandat, all rights reserved (not CC0).';
 
 const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
   privacy: {
@@ -40,9 +41,9 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
         {
           heading: 'Kèo và lượt vote',
           items: [
-            'Với mỗi kèo, máy chủ lưu những gì người tạo nhập: tên kèo, loại hoạt động, khu vực, ngân sách mỗi người (nếu có), hạn vote, các lựa chọn giờ và chỗ, và giờ, chỗ đã chốt.',
-            'Bạn bè tham gia không cần tài khoản: máy chủ lưu tên hiển thị họ tự nhập, các lựa chọn họ vote và trạng thái đi hay không. Trình duyệt của họ giữ một mã ngẫu nhiên trong cookie để nhận ra họ khi mở lại; máy chủ chỉ lưu bản băm của mã đó.',
-            'Ai có link kèo đều thấy tên kèo, các lựa chọn, tên hiển thị của người tham gia và lượt vote của họ. Link chỉ chứa mã ngẫu nhiên; máy chủ chỉ lưu bản băm của mã. Người tạo đổi được link khi link bị gửi ra ngoài nhóm.',
+            'Với mỗi kèo, máy chủ lưu những gì người tạo nhập: tên kèo, loại hoạt động, khu vực, ngân sách mỗi người và số người trong nhóm (nếu có), hạn vote, các lựa chọn giờ và chỗ, và giờ, chỗ đã chốt.',
+            'Bạn bè tham gia không cần tài khoản: máy chủ lưu tên hiển thị họ tự nhập, các lựa chọn họ vote và việc họ có tham gia hay không. Ngay lần đầu mở link, trình duyệt nhận một cookie chứa mã ngẫu nhiên của riêng kèo đó (kể cả khi chưa nhập tên), để nhận ra cùng trình duyệt khi mở lại và để đếm số lần link được mở; máy chủ chỉ lưu bản băm của mã đó.',
+            'Ai có link kèo đều thấy tên kèo, các lựa chọn, tên hiển thị của người tham gia và lượt vote của họ. Link chỉ chứa mã ngẫu nhiên; máy chủ tìm kèo bằng bản băm của mã, và giữ thêm một bản mã hoá (AES-256-GCM) để người tạo xem lại và gửi lại link. Người tạo đổi được link khi link bị gửi ra ngoài nhóm. Thẻ xem trước của link chỉ có tên kèo, không có tên người tham gia.',
             'App ghi nhật ký thay đổi của kèo (tạo, vote, chốt, huỷ) để đếm số kèo được tạo và được chốt; nhật ký không chứa tên người vote.',
           ],
         },
@@ -80,9 +81,9 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
         {
           heading: 'Plans and votes',
           items: [
-            'For each plan the server keeps what its maker typed: the title, kind of activity, area, budget per person (if any), vote deadline, the time and place options, and the time and place locked in.',
-            'Friends join without an account: the server keeps the display name they type, the options they vote for and whether they are going. Their browser keeps a random code in a cookie to recognise them when they come back; the server stores only its hash.',
-            "Anyone with a plan's link sees its title, options, the display names of the people who joined and their votes. The link holds only a random code; the server stores only its hash. The maker can change the link if it travels outside the group.",
+            'For each plan the server keeps what its maker typed: the title, kind of activity, area, budget per person and group size (if any), vote deadline, the time and place options, and the time and place locked in.',
+            'Friends join without an account: the server keeps the display name they type, the options they vote for and whether they are joining. The first time a browser opens a link it gets a cookie with a random code for that plan (even before typing a name), to recognise the same browser when it comes back and to count how often the link is opened; the server stores only its hash.',
+            "Anyone with a plan's link sees its title, options, the display names of the people who joined and their votes. The link holds only a random code; the server finds the plan by the code's hash and also keeps an encrypted copy (AES-256-GCM) so the maker can see and resend the link. The maker can change the link if it travels outside the group. The link preview shows only the plan's title, never the names of the people in it.",
             'The app logs the changes of a plan (made, voted, locked, cancelled) to count how many plans are made and locked in; the log holds no voter names.',
           ],
         },
@@ -158,12 +159,14 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
           heading: 'Giao diện và máy chủ',
           items: [
             { text: 'React', href: 'https://react.dev', note: 'giấy phép MIT.' },
-            { text: 'Inter', href: 'https://rsms.me/inter/', note: 'giấy phép SIL Open Font License 1.1.' },
+            { text: 'Bricolage Grotesque', href: 'https://github.com/ateliertriay/bricolage', note: 'giấy phép SIL Open Font License 1.1.' },
+            { text: 'Be Vietnam Pro', href: 'https://github.com/bettergui/BeVietnamPro', note: 'giấy phép SIL Open Font License 1.1.' },
             { text: 'Express', href: 'https://expressjs.com', note: 'giấy phép MIT.' },
             { text: 'Drizzle ORM', href: 'https://orm.drizzle.team', note: 'giấy phép Apache-2.0.' },
           ],
         },
         { heading: 'Biểu tượng app', paragraphs: [APP_ICON_LICENCE] },
+        { heading: 'Sticker trên ảnh story', paragraphs: [STICKER_LICENCE] },
         { heading: 'Mã nguồn', paragraphs: ['Mã nguồn của app theo giấy phép MIT.'] },
       ],
     },
@@ -175,12 +178,14 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
           heading: 'Interface and server',
           items: [
             { text: 'React', href: 'https://react.dev', note: 'MIT licence.' },
-            { text: 'Inter', href: 'https://rsms.me/inter/', note: 'SIL Open Font License 1.1.' },
+            { text: 'Bricolage Grotesque', href: 'https://github.com/ateliertriay/bricolage', note: 'SIL Open Font License 1.1.' },
+            { text: 'Be Vietnam Pro', href: 'https://github.com/bettergui/BeVietnamPro', note: 'SIL Open Font License 1.1.' },
             { text: 'Express', href: 'https://expressjs.com', note: 'MIT licence.' },
             { text: 'Drizzle ORM', href: 'https://orm.drizzle.team', note: 'Apache-2.0 licence.' },
           ],
         },
         { heading: 'App icon', paragraphs: [APP_ICON_LICENCE] },
+        { heading: 'Story image stickers', paragraphs: [STICKER_LICENCE] },
         { heading: 'Source code', paragraphs: ["The app's source code is under the MIT licence."] },
       ],
     },

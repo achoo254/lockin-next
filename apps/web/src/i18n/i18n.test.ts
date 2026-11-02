@@ -11,7 +11,7 @@ describe('i18n', () => {
 
   it('fills placeholders and the brand name', () => {
     expect(format('{app}: {n} vote, {missing}', { n: 3 })).toBe(`${brand.appName}: 3 vote, {missing}`);
-    expect(translator('en')('sample.going', { n: 4 })).toBe('4 going');
+    expect(translator('en')('nudge.voted', { n: 4 })).toBe('4 voted so far');
   });
 
   it('picks ?lang= first, then the saved choice, then Vietnamese', () => {

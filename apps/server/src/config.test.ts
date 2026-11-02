@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { randomBytes } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from './config';
 
 const SECRET = 's'.repeat(40);
+const KEY = randomBytes(32);
 
 describe('server config', () => {
   it('runs in dev with defaults: PGlite, sign-in off', () => {
@@ -21,7 +23,7 @@ describe('server config', () => {
 
   it('requires Postgres, sign-in and https in production', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/DATABASE_URL, AUTH_CLIENT_SECRET/);
-    const prod = { NODE_ENV: 'production', DATABASE_URL: 'postgres://lockin@127.0.0.1/lockin', AUTH_CLIENT_SECRET: SECRET };
+    const prod = { NODE_ENV: 'production', DATABASE_URL: 'postgres://lockin@127.0.0.1/lockin', AUTH_CLIENT_SECRET: SECRET, SHARE_TOKEN_KEY: KEY.toString('base64') };
     expect(() => loadConfig({ ...prod, PUBLIC_URL: 'http://lockin.hoandat.com' })).toThrow(/https/);
     expect(() => loadConfig({ ...prod, PUBLIC_URL: 'https://lockin.hoandat.com', PGLITE_DIR: 'memory' })).toThrow(/PGLITE_DIR/);
     expect(loadConfig({ ...prod, PUBLIC_URL: 'https://lockin.hoandat.com' }).auth?.redirectUri).toBe('https://lockin.hoandat.com/auth/callback');
@@ -41,5 +43,26 @@ describe('server config', () => {
   it('keeps PGlite in memory for `memory`, else in the given directory', () => {
     expect(loadConfig({ PGLITE_DIR: 'memory' }).pgliteDir).toBeNull();
     expect(loadConfig({ PGLITE_DIR: '/tmp/x' }).pgliteDir).toBe('/tmp/x');
+  });
+
+  it('requires a 32-byte SHARE_TOKEN_KEY in production, and makes a random one with a warning elsewhere', () => {
+    const prod = { NODE_ENV: 'production', DATABASE_URL: 'postgres://lockin@127.0.0.1/lockin', AUTH_CLIENT_SECRET: SECRET, PUBLIC_URL: 'https://lockin.hoandat.com' };
+    expect(() => loadConfig(prod)).toThrow(/SHARE_TOKEN_KEY required in production/);
+    expect(loadConfig({ ...prod, SHARE_TOKEN_KEY: KEY.toString('base64') }).shareTokenKey.equals(KEY)).toBe(true);
+    expect(loadConfig({ ...prod, SHARE_TOKEN_KEY: KEY.toString('base64url') }).shareTokenKey.equals(KEY)).toBe(true);
+    for (const bad of [randomBytes(16).toString('base64'), 'not base64 at all!', randomBytes(33).toString('base64')]) {
+      expect(() => loadConfig({ ...prod, SHARE_TOKEN_KEY: bad })).toThrow(/SHARE_TOKEN_KEY must be 32 bytes/);
+      expect(() => loadConfig({ ...prod, SHARE_TOKEN_KEY: bad })).not.toThrow(bad);
+    }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const a = loadConfig({ NODE_ENV: 'test' });
+      const b = loadConfig({ NODE_ENV: 'test' });
+      expect(a.shareTokenKey).toHaveLength(32);
+      expect(a.shareTokenKey.equals(b.shareTokenKey)).toBe(false);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('SHARE_TOKEN_KEY unset'));
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

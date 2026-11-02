@@ -15,6 +15,13 @@
       "when": 1793606967487,
       "tag": "0001_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793609508933,
+      "tag": "0002_share-link-group-size-activities-map-url",
+      "breakpoints": true
     }
   ]
 }

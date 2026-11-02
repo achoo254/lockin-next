@@ -1,22 +1,25 @@
 /* =====================================================================
-   LOCKIN DESIGN TOKENS: lavender day
-   The app's one designed theme (no light/dark switch), taken from the
-   app icon: a soft lavender page, white cards, deep ink text, the icon's
-   violet for what can be pressed and its pink for the "locked in" accent.
+   LOCKIN DESIGN TOKENS: sticker group chat
+   The app's one designed theme (no light/dark switch): an off-white page,
+   white stickers with thick black outlines and hard offset shadows, coral
+   for what can be pressed, lime for "locked in" and highlights.
    This file holds the ONLY colour literals of the web app (checked by
    `pnpm check:tokens` and `pnpm check:brand`); every stylesheet and
    component reads these custom properties.
 
-   `pnpm check:tokens` checks every text colour below on every surface and
-   chip at WCAG AA 4.5:1, white on the solid buttons, and the form-control
-   outline at 3:1.
+   Coral and lime are fills only: black text sits on them, and coral never
+   colours text on the page. `pnpm check:tokens` checks every text colour
+   on every surface and tint at WCAG AA 4.5:1, black on coral and lime,
+   and the focus ring at 3:1.
    ===================================================================== */
 
 :root {
   color-scheme: light;
 
-  /* type: Inter, self-hosted with the Vietnamese subset (@fontsource, main.tsx), heavy weights for titles */
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* type: Bricolage Grotesque for titles, Be Vietnam Pro for the rest, both self-hosted with the Vietnamese
+     subset (@fontsource, main.tsx) */
+  --font-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
 
   /* spacing, sizes, radii, motion */
   --space-1: 4px;
@@ -29,58 +32,74 @@
   --space-8: 64px;
   --gutter: 16px;
   --container: 1120px;
-  --topbar-h: 64px;
+  --column: 560px;
+  --topbar-h: 60px;
   --tap: 44px;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 999px;
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.44rem;
+  --fs-2xl: 1.728rem;
 
   /* page and surfaces */
-  --c-bg: #f7f4ff; /* lavender mist */
-  --c-bg-deep: #ece6ff; /* the glow behind the hero */
+  --c-bg: #fbf8ef; /* off-white paper */
   --c-surface: #ffffff;
-  --c-surface-subtle: #f3effe;
-  --c-surface-raised: #ffffff;
-  --c-topbar: #ffffff;
+  --c-surface-subtle: #f2eedf;
+  --c-chat: #dcebff; /* the group chat behind the link preview */
 
-  /* text and lines */
-  --c-text: #1e1638; /* deep ink violet */
-  --c-text-muted: #564d72;
-  --c-border: #e3dcf5;
-  --c-border-subtle: #eee9fb;
-  --c-border-strong: #857aa6; /* form-control outlines: 3:1 on every surface */
+  /* ink: text, outlines and hard shadows */
+  --c-text: #141414;
+  --c-text-muted: #4d4a42;
+  --c-on-ink: #ffffff; /* text on an ink fill (picked chip, picked segment) */
+  --c-border: #141414;
+  --c-border-subtle: #d9d3c0;
 
-  /* the icon's violet: links and accents (text), solid buttons (fill) */
-  --c-primary: #5a47aa;
-  --c-primary-solid: #6a52c9;
-  --c-primary-solid-hover: #5a47aa;
-  --c-on-primary: #ffffff;
-  /* the icon's pink: the "locked in" stamp and vote bars (fill), and its readable shade for text */
-  --c-accent: #e796f3;
-  --c-accent-soft: #fbe6ff;
-  --c-accent-text: #9c2a99;
-  --c-violet-light: #8874d8; /* second vote bar (fill only) */
+  /* coral: what can be pressed (fill only, black text on it) */
+  --c-primary-solid: #ff5a4e;
+  --c-primary-solid-hover: #ff7166;
+  --c-primary-soft: #ffe1dc;
+  --c-on-primary: #141414;
 
-  /* chips behind text: the sample plan's tag, avatars and stamp */
-  --c-chip-violet: #e9e3ff;
-  --c-chip-pink: #fbe3ff;
-  --c-chip-mint: #d9f5e8;
+  /* lime: locked in and highlights (fill only, black text on it) */
+  --c-lock: #c6f432;
+  --c-lock-soft: #ecfbb8;
 
   /* status */
-  --c-error: #b42318;
-  --c-info: #3b4fd8;
-  --c-backdrop: rgb(30 22 56 / 0.5);
+  --c-warn-soft: #ffe27a;
+  --c-ok: #1d6b2f;
+  --c-error: #b3261e;
+  --c-error-soft: #ffe1dc;
+  --c-focus: #2f6bff;
+  --c-backdrop: rgb(20 20 20 / 0.5);
 
-  /* shadows and focus */
-  --shadow-card: 0 18px 40px -24px rgb(64 40 140 / 0.35), 0 1px 0 rgb(255 255 255 / 0.8) inset;
-  --shadow-lg: 0 30px 70px -30px rgb(64 40 140 / 0.45);
-  --shadow-primary: 0 12px 26px -12px rgb(106 82 201 / 0.7);
-  --shadow-focus: 0 0 0 3px rgb(106 82 201 / 0.3);
+  /* story-image templates, one per activity (plans/story-templates.ts): the background behind the title, whose ink
+     is black, or white on movie and party */
+  --story-cafe: #f3d9b1;
+  --story-food: #ffd23f;
+  --story-movie: #1f1b4d;
+  --story-karaoke: #b28dff;
+  --story-trip: #7fd8ff;
+  --story-birthday: #ff9ecf;
+  --story-lunch: #ffb347;
+  --story-party: #2b2b2b;
+  --story-teambuilding: #9be37a;
+  --story-meeting: #9cc3ff;
+
+  /* sticker lines and hard shadows */
+  --line: 2px solid var(--c-border);
+  --line-thin: 1.5px solid var(--c-border);
+  --pop: 3px 3px 0 var(--c-border);
+  --pop-sm: 2px 2px 0 var(--c-border);
+  --shadow-lg: var(--pop);
 }
 
 @media (min-width: 768px) {

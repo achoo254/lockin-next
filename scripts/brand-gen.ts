@@ -3,12 +3,13 @@
  * (brand/app-icon-master-1024.png) and brand.config.json, with the Chromium of @playwright/test:
  *
  * - brand/app-icon.svg and app-icon-maskable.svg: the master embedded as WebP, the sources @achoo254/brand draws
- *   from. The master is full-bleed (its gradient runs to the edges) with the padlock inside the central safe circle,
- *   so the maskable icon is the same picture;
+ *   from. The master is full-bleed (its lime runs to the edges) with the padlock sticker inside the central safe
+ *   circle, so the maskable icon is the same picture;
  * - brand/generated/: web manifest, PNG icons (192, 512, maskable, Apple touch) and favicon.ico (writeBrandFiles);
  * - apps/web/public/brand-mark-96.webp: the header mark;
- * - apps/web/public/og-image.png: the 1200 × 630 link preview in the app's look: the icon beside the name, the
- *   value line and the host, drawn here as text in the app's own font and the colours of apps/web/src/ui/tokens.css.
+ * - apps/web/public/og-image.png: the 1200 × 630 link preview in the app's sticker look: on lime, the icon as a
+ *   black-outlined sticker beside the name in black, the value line on a white sticker and the host, drawn here as
+ *   text in the app's own fonts and the colours of apps/web/src/ui/tokens.css.
  *
  * Run after changing the master, the tokens or the brand, then commit the files.
  */
@@ -70,13 +71,9 @@ function inlinedFontCss(stylesheet: string): string {
 }
 
 interface OgColours {
-  bg: string;
-  glow: string;
-  pink: string;
-  text: string;
-  muted: string;
-  primary: string;
-  chip: string;
+  lime: string;
+  ink: string;
+  paper: string;
 }
 
 function ogColours(): OgColours {
@@ -86,29 +83,21 @@ function ogColours(): OgColours {
     if (found === undefined) throw new Error(`brand:gen: tokens.css does not define ${name}`);
     return found;
   };
-  return {
-    bg: v('--c-bg'),
-    glow: v('--c-bg-deep'),
-    pink: v('--c-accent-soft'),
-    text: v('--c-text'),
-    muted: v('--c-text-muted'),
-    primary: v('--c-primary'),
-    chip: v('--c-chip-violet'),
-  };
+  return { lime: v('--c-lock'), ink: v('--c-text'), paper: v('--c-surface') };
 }
 
 function ogHtml(iconDataUrl: string, appName: string, line: string, host: string, c: OgColours): string {
   return `<!doctype html><html lang="vi"><head><style>
-${inlinedFontCss('@fontsource/inter/400.css')}
-${inlinedFontCss('@fontsource/inter/800.css')}
+${inlinedFontCss('@fontsource/be-vietnam-pro/700.css')}
+${inlinedFontCss('@fontsource/bricolage-grotesque/800.css')}
 </style></head><body style="margin:0">
-<div style="position:relative;width:${OG_IMAGE.width}px;height:${OG_IMAGE.height}px;overflow:hidden;color:${c.text};font-family:Inter,sans-serif;background:radial-gradient(ellipse 70% 80% at 0 0,${c.glow},transparent 70%),radial-gradient(ellipse 60% 70% at 100% 100%,${c.pink},transparent 70%),${c.bg}">
-<div style="position:absolute;top:0;bottom:0;left:84px;right:84px;display:flex;align-items:center;gap:64px">
-<img src="${iconDataUrl}" width="360" height="360" alt="" style="flex:none;border-radius:84px;box-shadow:0 40px 80px -30px ${c.primary}">
-<div style="display:flex;flex-direction:column;gap:22px">
-<div style="font-weight:800;font-size:112px;line-height:.95;letter-spacing:-0.04em">${appName}</div>
-<div style="font-weight:800;font-size:42px;line-height:1.2;letter-spacing:-0.02em;color:${c.primary}">${line}</div>
-<div style="align-self:flex-start;padding:10px 22px;border-radius:999px;background:${c.chip};font-size:26px;color:${c.muted}">${host}</div>
+<div style="position:relative;width:${OG_IMAGE.width}px;height:${OG_IMAGE.height}px;overflow:hidden;color:${c.ink};font-family:'Be Vietnam Pro',sans-serif;background:${c.lime}">
+<div style="position:absolute;top:0;bottom:0;left:88px;right:88px;display:flex;align-items:center;gap:64px">
+<img src="${iconDataUrl}" width="330" height="330" alt="" style="flex:none;border-radius:72px;border:6px solid ${c.ink};box-shadow:14px 14px 0 ${c.ink}">
+<div style="display:flex;flex-direction:column;align-items:flex-start;gap:26px">
+<div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:132px;line-height:.9;letter-spacing:-0.04em">${appName}</div>
+<div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:44px;line-height:1.15;letter-spacing:-0.02em;padding:14px 26px;border-radius:20px;background:${c.paper};border:4px solid ${c.ink};box-shadow:8px 8px 0 ${c.ink};transform:rotate(-1.5deg)">${line}</div>
+<div style="padding:10px 24px;border-radius:999px;background:${c.paper};border:3px solid ${c.ink};font-size:28px;font-weight:700">${host}</div>
 </div></div></div></body></html>`;
 }
 
@@ -126,7 +115,7 @@ async function main(): Promise<void> {
     writeFileSync(new URL('brand-mark-96.webp', PUBLIC_DIR), dataUrlBytes(await encodeMaster(page, masterDataUrl, 96, 'image/webp'), 'image/webp'));
 
     await page.setViewportSize({ width: OG_IMAGE.width, height: OG_IMAGE.height });
-    await page.setContent(ogHtml(webp512, brand.appName, messages['intro.title'], new URL(primaryOrigin(brand)).host, ogColours()));
+    await page.setContent(ogHtml(webp512, brand.appName, `${messages['home.titleStart']} ${messages['home.titleEm']}`, new URL(primaryOrigin(brand)).host, ogColours()));
     await page.locator('img').evaluateAll((images: HTMLImageElement[]) => Promise.all(images.map((img) => img.decode())));
     await page.evaluate(() => document.fonts.ready);
     writeFileSync(new URL(OG_IMAGE.path, PUBLIC_DIR), await page.screenshot({ clip: { x: 0, y: 0, width: OG_IMAGE.width, height: OG_IMAGE.height } }));

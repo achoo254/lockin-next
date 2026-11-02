@@ -19,7 +19,10 @@ chọn cổng khác và đổi cùng lúc ở `infra/nginx/lockin.hoandat.com.co
 `PORT` trong env production, và mục này.
 
 Link kèo `/k/<token>` và API khách `/api/k/<token>/…` mang token chia sẻ trong đường dẫn, nên nginx chuyển chúng cho
-server với `access_log off`: token không bao giờ nằm trong log truy cập. Server giữ một tiến trình Node, không worker;
+server với `access_log off`: token không bao giờ nằm trong log truy cập. `/k/<token>` là trang `index.html` của bản web
+đang chạy (`apps/web/dist/index.html`, server đọc một lần mỗi lần khởi động) có thêm thẻ xem trước của kèo
+(`apps/server/src/share/og-page.ts`); server gửi kèm đúng CSP của `location /` trong nginx (test giữ hai chuỗi giống
+nhau). Khi dev, Vite cũng chuyển `/k/` sang server, server lấy trang từ chính Vite (`PUBLIC_URL`). Server giữ một tiến trình Node, không worker;
 unit giới hạn `MemoryHigh=160M`, `MemoryMax=256M`.
 
 Các file: [`infra/nginx/lockin.hoandat.com.conf`](../infra/nginx/lockin.hoandat.com.conf),
@@ -34,13 +37,14 @@ không bao giờ trong repo. Trên server là `/etc/lockin/production.env` (`roo
 
 | Biến | Production |
 |---|---|
-| `NODE_ENV` | `production` (bắt buộc có `DATABASE_URL`, `AUTH_CLIENT_SECRET`, `PUBLIC_URL` https) |
+| `NODE_ENV` | `production` (bắt buộc có `DATABASE_URL`, `AUTH_CLIENT_SECRET`, `SHARE_TOKEN_KEY`, `PUBLIC_URL` https) |
 | `PORT` | `5300` (tạm, xem trên) |
 | `PUBLIC_URL` | `https://lockin.hoandat.com` |
 | `DATABASE_URL` | `postgres://lockin:<mật khẩu>@127.0.0.1:5432/lockin` |
 | `AUTH_ISSUER` | `https://auth.hoandat.com` |
 | `AUTH_CLIENT_ID` | `lockin-web` |
 | `AUTH_CLIENT_SECRET` | secret của client `lockin-web`, cùng giá trị với `LOCKIN_WEB_CLIENT_SECRET` trên IdP (≥ 32 ký tự) |
+| `SHARE_TOKEN_KEY` | khoá AES-256-GCM 32 byte dạng base64, mã hoá link chia sẻ để người tạo xem lại link. Tạo một lần: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`, lưu cùng thư mục env trên iCloud. Đổi khoá thì mọi link đã lưu không xem lại được (người tạo bấm "Đổi link" để có link mới); link cũ vẫn mở được vì máy chủ tìm theo hash |
 
 Thiếu biến bắt buộc hay sai dạng thì server từ chối khởi động, log nêu tên biến (không bao giờ in giá trị).
 

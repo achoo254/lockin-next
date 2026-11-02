@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type DbHandle, openPglite } from '../db/client';
@@ -5,6 +6,7 @@ import { planOptions } from '../db/schema';
 import { planBody } from '../../test/plan-browser';
 import { CreatePlanInput } from '../plans/plan-input';
 import { createPlan, finishPlan, joinPlan, lockPlan, recordLinkOpened, setVotes } from '../plans/plan-store';
+import { shareTokenBox } from '../plans/share-token-box';
 import { newToken } from '../plans/tokens';
 import { computeStats, formatStats, parseSubs } from './plan-stats';
 
@@ -24,7 +26,7 @@ afterAll(async () => {
 async function plan(sub: string, at: Date, shape: { opens: number; voters: number; lurkers: number; sourcePlanId?: string }): Promise<string> {
   const { db } = database;
   const input = CreatePlanInput.parse(planBody(at.getTime(), { creatorDisplayName: 'Owner' }));
-  const { plan: row, shareToken } = await createPlan(db, { creatorSub: sub, input, sourcePlanId: shape.sourcePlanId ?? null, now: at });
+  const { plan: row, shareToken } = await createPlan(db, { creatorSub: sub, input, sourcePlanId: shape.sourcePlanId ?? null, box: shareTokenBox(randomBytes(32)), now: at });
   for (let i = 0; i < shape.opens; i++) await recordLinkOpened(db, row.id, at);
   const [option] = await db.select().from(planOptions).where(eq(planOptions.planId, row.id));
   for (let i = 0; i < shape.voters + shape.lurkers; i++) {

@@ -1,7 +1,7 @@
 import { AccountMenu } from '@achoo254/app-shell';
 import { writePreference } from '@achoo254/app-shell/preferences';
 import { type ReactNode, useState } from 'react';
-import { LOGIN_PATH, type SessionState, type SessionUser, loginReturnPath, signOut, signUpHref } from '../api/session-api';
+import { LOGIN_PATH, type SessionState, type SessionUser, loginReturnPath, signInHref, signOut } from '../api/session-api';
 import { BRAND_MARK_SRC, ECOSYSTEM_URL, IDP_ACCOUNT_URL, brand } from '../brand';
 import { LOCALES, type Locale, useI18n } from '../i18n/i18n';
 
@@ -42,7 +42,7 @@ function LanguageSwitch(): ReactNode {
 
 /** The signed-in account in place of the header's sign-up pill: the shared account menu (avatar, name, sign-out). */
 function AccountButton({ user }: { user: SessionUser | undefined }): ReactNode {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const [signingOut, setSigningOut] = useState(false);
 
   async function onSignOut(): Promise<void> {
@@ -63,41 +63,47 @@ function AccountButton({ user }: { user: SessionUser | undefined }): ReactNode {
       locale={locale}
       domain={brand.primaryTenant.domain}
       idpAccountUrl={IDP_ACCOUNT_URL}
+      entries={[
+        [
+          { label: t('layout.myPlans'), dataId: 'account-menu-plans', href: '/plans' },
+          { label: t('layout.newPlan'), dataId: 'account-menu-new', href: '/new' },
+        ],
+      ]}
       signOut={{ onClick: () => void onSignOut(), busy: signingOut }}
     />
   );
 }
 
 /**
- * The sign-up pill, the account menu, or nothing when sign-in is not set up. The pill is a sign-up button: it goes
- * straight to making an account at the IdP and back to this page (from /login, to the page that sent the visitor).
+ * "Đăng nhập", the account menu, or nothing: when sign-in is not set up, and on a plan link for someone signed out
+ * (guests never need an account there). Sign-in comes back to this page (from /login, to the page that sent them).
  */
-function AccountControl({ path, session }: { path: string; session: SessionState }): ReactNode {
+function AccountControl({ path, session, guestPage }: { path: string; session: SessionState; guestPage: boolean }): ReactNode {
   const { t, locale } = useI18n();
   if (session.status === 'ready' && session.signedIn) return <AccountButton user={session.user} />;
-  // Sign-in is not configured on this server: no pill that would only come back with "not open yet".
+  if (guestPage) return null;
+  // Sign-in is not configured on this server: no button that would only come back with "not open yet".
   if (session.status === 'ready' && !session.signInAvailable) return null;
   const back = path === LOGIN_PATH ? loginReturnPath(window.location.search) : path;
   return (
-    <a className="pill pill-primary" href={signUpHref(locale, back)} data-id="public-sign-in">
-      {/* Signing in for the first time makes the account, so the pill invites a sign-up; short on phones. */}
-      <span className="hide-phone">{t('layout.signIn')}</span>
-      <span className="only-phone">{t('layout.signInShort')}</span>
+    <a className="btn btn-ghost btn-sm" href={signInHref(locale, back)} data-id="public-sign-in">
+      {t('layout.signIn')}
     </a>
   );
 }
 
-function SiteHeader({ path, session }: { path: string; session: SessionState }): ReactNode {
+function SiteHeader({ path, session, actions, guestPage }: { path: string; session: SessionState; actions?: ReactNode; guestPage: boolean }): ReactNode {
   return (
     <header className="topbar" data-id="public-header">
       <div className="topbar-inner container">
         <a className="brand" href="/" data-id="public-home">
-          <img className="brand-mark" src={BRAND_MARK_SRC} width={36} height={36} alt="" aria-hidden="true" />
+          <img className="brand-mark" src={BRAND_MARK_SRC} width={32} height={32} alt="" aria-hidden="true" />
           <span className="brand-name">{brand.appName}</span>
         </a>
         <div className="topbar-end">
+          {actions}
           <LanguageSwitch />
-          <AccountControl path={path} session={session} />
+          <AccountControl path={path} session={session} guestPage={guestPage} />
         </div>
       </div>
     </header>
@@ -115,12 +121,9 @@ function SiteFooter({ path }: { path: string }): ReactNode {
   return (
     <footer className="foot" data-id="public-footer">
       <div className="foot-inner container">
-        <div className="foot-brand">
-          <img className="foot-mark" src={BRAND_MARK_SRC} width={28} height={28} alt="" aria-hidden="true" loading="lazy" decoding="async" />
-          <a className="foot-home" href={ECOSYSTEM_URL} data-id="foot-home">
-            {t('layout.ecosystem', { domain })}
-          </a>
-        </div>
+        <a className="foot-home" href={ECOSYSTEM_URL} data-id="foot-home">
+          {t('layout.ecosystem', { domain })}
+        </a>
         <nav className="foot-links" aria-label={t('layout.footLinks')}>
           {links.map((link) => (
             <a key={link.dataId} className="foot-link" href={link.href} data-id={link.dataId} aria-current={path === link.href ? 'page' : undefined}>
@@ -128,9 +131,6 @@ function SiteFooter({ path }: { path: string }): ReactNode {
             </a>
           ))}
         </nav>
-        <p className="foot-note" data-id="foot-note">
-          {t('layout.disclaimer')}
-        </p>
       </div>
     </footer>
   );
@@ -140,23 +140,27 @@ interface LockinPageProps {
   /** Normalised path of the page (app.tsx routePath). */
   path: string;
   session: SessionState;
-  /** "center" for a lone card (sign-in, coming soon). */
+  /** "center" for a lone card (sign-in). */
   layout?: 'flow' | 'center';
+  /** Buttons at the start of the header's end (the plan page's refresh). */
+  actions?: ReactNode;
+  /** A plan link: no "Đăng nhập" for someone signed out. */
+  guestPage?: boolean;
   children: ReactNode;
 }
 
 /** Every page, signed out or in: the app's header and footer around the page. */
-export function LockinPage({ path, session, layout = 'flow', children }: LockinPageProps): ReactNode {
+export function LockinPage({ path, session, layout = 'flow', actions, guestPage = false, children }: LockinPageProps): ReactNode {
   const { t } = useI18n();
   return (
     <div className="site">
       <a className="skip-link" href="#main" data-id="skip-link">
         {t('layout.skip')}
       </a>
-      <SiteHeader path={path} session={session} />
+      <SiteHeader path={path} session={session} actions={actions} guestPage={guestPage} />
       {/* Focusable by the skip link only, not in the tab order. */}
       <main id="main" tabIndex={-1} className={layout === 'center' ? 'main container main-center' : 'main container'}>
-        {layout === 'center' ? children : <div className="page">{children}</div>}
+        {children}
       </main>
       <SiteFooter path={path} />
     </div>

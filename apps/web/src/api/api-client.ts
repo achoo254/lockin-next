@@ -19,10 +19,20 @@ async function errorCode(res: Response): Promise<string> {
   return `http-${res.status}`;
 }
 
+/** The code of a request that never got an answer (offline, DNS, connection reset). */
+export const NETWORK_ERROR = 'network';
+/** The code of an answer that is not what the API documents. */
+export const BAD_RESPONSE = 'bad-response';
+
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (init.body !== undefined) headers.set('Content-Type', 'application/json');
-  const res = await fetch(path, { ...init, headers, credentials: 'same-origin' });
+  let res: Response;
+  try {
+    res = await fetch(path, { ...init, headers, credentials: 'same-origin' });
+  } catch {
+    throw new ApiError(0, NETWORK_ERROR);
+  }
   if (!res.ok) throw new ApiError(res.status, await errorCode(res));
   return res;
 }

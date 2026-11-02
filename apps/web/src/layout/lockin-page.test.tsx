@@ -46,16 +46,27 @@ describe('sign-in links', () => {
 });
 
 describe('page frame', () => {
-  it("has the app's header: brand, language pill, sign-up pill, skip link", () => {
+  it("has the app's header: brand, language switch, sign-in button, skip link", () => {
     show('/privacy', SIGNED_OUT);
     expect(document.querySelector('[data-id=public-header] [data-id=public-home]')?.textContent).toBe(brand.appName);
-    // The pill is a sign-up button: straight to making an account at the IdP, back to this page.
-    expect(document.querySelector('[data-id=public-sign-in]')?.getAttribute('href')).toBe('/auth/login?return=%2Fprivacy&lang=vi&signup=1');
-    expect(document.querySelector('[data-id=public-sign-in] .hide-phone')?.textContent).toBe('Đăng ký miễn phí');
-    expect(document.querySelector('[data-id=public-sign-in] .only-phone')?.textContent).toBe('Đăng ký');
+    const signIn = document.querySelector('[data-id=public-sign-in]');
+    expect(signIn?.getAttribute('href')).toBe('/auth/login?return=%2Fprivacy&lang=vi');
+    expect(signIn?.textContent).toBe('Đăng nhập');
     expect(document.querySelector('[data-id=lang-vi]')?.getAttribute('aria-pressed')).toBe('true');
     expect(document.querySelector('[data-id=skip-link]')?.getAttribute('href')).toBe('#main');
     expect(document.querySelector('main#main')).not.toBeNull();
+  });
+
+  it('never offers sign-in to a signed-out guest on a plan link, and shows the page actions', () => {
+    render(
+      <I18nProvider>
+        <LockinPage path="/k/abc" session={SIGNED_OUT} guestPage actions={<button type="button">act</button>}>
+          <h1>Body</h1>
+        </LockinPage>
+      </I18nProvider>,
+    );
+    expect(document.querySelector('[data-id=public-sign-in]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'act' })).not.toBeNull();
   });
 
   it('says in the footer that the app belongs to hoandat.com, with the privacy, terms and credits pages', () => {
@@ -66,13 +77,11 @@ describe('page frame', () => {
     expect(document.querySelector('[data-id=foot-privacy]')?.getAttribute('href')).toBe('/privacy');
     expect(document.querySelector('[data-id=foot-terms]')?.getAttribute('href')).toBe('/terms');
     expect(document.querySelector('[data-id=foot-credits]')?.getAttribute('aria-current')).toBe('page');
-    expect(document.querySelector('[data-id=foot-note]')?.textContent).toBe('Miễn phí, không quảng cáo.');
   });
 
   it('switches the language and keeps it in the shared cookie', () => {
     show('/', SIGNED_OUT);
     fireEvent.click(screen.getByRole('button', { name: 'English' }));
-    expect(document.querySelector('[data-id=foot-note]')?.textContent).toBe('Free, no ads.');
     expect(document.querySelector('[data-id=foot-home]')?.textContent).toBe('An app from hoandat.com');
     expect(document.querySelector('[data-id=lang-en]')?.getAttribute('aria-pressed')).toBe('true');
     expect(document.cookie).toContain('hd_lang=en');
@@ -82,10 +91,10 @@ describe('page frame', () => {
   it('opens in the language picked in another hoandat.com app', () => {
     document.cookie = 'hd_lang=en; Path=/';
     show('/', SIGNED_OUT);
-    expect(document.querySelector('[data-id=foot-note]')?.textContent).toBe('Free, no ads.');
+    expect(document.querySelector('[data-id=foot-home]')?.textContent).toBe('An app from hoandat.com');
   });
 
-  it('shows the account (picture and name) instead of sign-up once signed in, with its menu', () => {
+  it('shows the account (picture and name) instead of sign-in once signed in, with its menu and the plan links', () => {
     const user = { name: 'Nguyễn Văn A', email: 'a@example.com', picture: 'https://lh3.googleusercontent.com/a/photo' };
     show('/', { status: 'ready', signedIn: true, signInAvailable: true, user });
     expect(document.querySelector('[data-id=public-sign-in]')).toBeNull();
@@ -94,6 +103,8 @@ describe('page frame', () => {
     expect(trigger?.querySelector('img')?.getAttribute('src')).toBe(user.picture);
     expect(document.querySelector('[data-id=account-menu]')?.textContent).toContain('a@example.com');
     expect(document.querySelector('[data-id=account-menu-sign-out]')?.textContent).toBe('Đăng xuất');
+    expect(document.querySelector('[data-id=account-menu-plans]')?.getAttribute('href')).toBe('/plans');
+    expect(document.querySelector('[data-id=account-menu-new]')?.getAttribute('href')).toBe('/new');
   });
 
   it('signs out from the account menu, then goes home', async () => {
@@ -115,7 +126,7 @@ describe('page frame', () => {
     }
   });
 
-  it('has no sign-up pill when sign-in is not configured', () => {
+  it('has no sign-in button when sign-in is not configured', () => {
     show('/', { status: 'ready', signedIn: false, signInAvailable: false });
     expect(document.querySelector('[data-id=public-sign-in]')).toBeNull();
     expect(document.querySelector('[data-id=account-menu]')).toBeNull();
@@ -135,7 +146,7 @@ describe('sign-in page', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Đăng nhập để tạo kèo');
     expect(document.querySelector('[data-id=sign-in-cta]')?.getAttribute('href')).toBe('/auth/login?return=%2Fnew&lang=vi');
     expect(document.querySelector('[data-id=sign-in-cta]')?.textContent).toBe('Đăng nhập bằng hoandat.com');
-    // The sign-up pill there goes back to the same page as the card.
-    expect(document.querySelector('[data-id=public-sign-in]')?.getAttribute('href')).toBe('/auth/login?return=%2Fnew&lang=vi&signup=1');
+    // The header's sign-in there goes back to the same page as the card.
+    expect(document.querySelector('[data-id=public-sign-in]')?.getAttribute('href')).toBe('/auth/login?return=%2Fnew&lang=vi');
   });
 });

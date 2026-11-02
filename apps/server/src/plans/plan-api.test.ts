@@ -76,7 +76,7 @@ describe('creating and listing plans', () => {
     const body = JSON.stringify(planBody(clock));
     expect(await (await anonymous.call('/api/plans', { method: 'POST', body })).json()).toEqual({ error: 'sign-in-required' });
     const creator = await signedIn('creator-a');
-    for (const bad of [{ title: '' }, { activity: 'party' }, { options: [] }, { budgetPerPerson: -1 }, { unknown: 1 }, { title: 'two\nlines' }]) {
+    for (const bad of [{ title: '' }, { activity: 'rave' }, { options: [] }, { budgetPerPerson: -1 }, { unknown: 1 }, { title: 'two\nlines' }]) {
       const res = await creator.call('/api/plans', { method: 'POST', body: JSON.stringify(planBody(clock, bad)) });
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: 'invalid-body' });

@@ -2,7 +2,7 @@
   "name": "lockin-next",
   "private": true,
   "type": "module",
-  "description": "Lockin: nhóm bạn chốt kèo đi chơi bằng một link, bạn bè vote giờ và chỗ không cần tài khoản",
+  "description": "Lockin: nh\u00f3m b\u1ea1n ch\u1ed1t k\u00e8o \u0111i ch\u01a1i b\u1eb1ng m\u1ed9t link, b\u1ea1n b\u00e8 vote gi\u1edd v\u00e0 ch\u1ed7 kh\u00f4ng c\u1ea7n t\u00e0i kho\u1ea3n",
   "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=22.12"
@@ -16,6 +16,7 @@
     "check:brand": "check-brand --config brand.config.json --dir apps --dir scripts --skip-dir test-results --skip-dir playwright-report --skip-dir generated --source-file '\\.(ts|tsx|js|mjs|cjs|css|html)$' --code-file '\\.(ts|tsx|js|mjs|cjs)$' --test-file '(^|/)(e2e|test)/|\\.(test|spec)\\.tsx?$' --jsx-text --html-word --skip-comment-lines --ignore-marker 'check-brand-ignore:' --colour-dir apps/web/src --token-file apps/web/src/ui/tokens.css --hint 'read it from apps/web/src/brand.ts'",
     "check:tokens": "tsx scripts/check-tokens.ts",
     "brand:gen": "tsx scripts/brand-gen.ts",
+    "e2e": "pnpm --filter @lockin/web e2e",
     "stats": "pnpm --filter @lockin/server stats"
   },
   "devDependencies": {

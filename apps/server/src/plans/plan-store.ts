@@ -4,12 +4,14 @@
  * vote never lands after a lock and two locks cannot both win. Every change is logged in plan_events with
  * participant ids only, never names.
  */
+import { randomUUID } from 'node:crypto';
 import { and, asc, count, desc, eq, inArray, lte, notInArray } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { type EventActor, type OptionKind, type PlanStatus, type Rsvp, participants, planEvents, planOptions, plans, votes } from '../db/schema';
 import { HttpError } from '../http-error';
 import { type CreatePlanInput, type OptionInput, type UpdatePlanInput, assertDeadline } from './plan-input';
 import { type PlanAction, assertCanDo, deleteCutoff, effectiveStatus, isPastDeletion, readOnlyCutoff } from './plan-rules';
+import type { ShareTokenBox } from './share-token-box';
 import { hashToken, newToken } from './tokens';
 
 export type PlanRow = typeof plans.$inferSelect;
@@ -45,30 +47,39 @@ function optionRows(planId: string, options: OptionInput[]): Array<typeof planOp
     planId,
     kind: option.kind,
     label: option.label,
+    mapUrl: option.kind === 'place' ? option.mapUrl : null,
     startsAt: option.kind === 'time' ? option.startsAt : null,
     sortOrder: order[option.kind]++,
   }));
 }
 
-/** Makes a plan and its options; the creator joins it at once when a name is given. Returns the share token once. */
+/**
+ * Makes a plan and its options; the creator joins it at once when a name is given. Returns the share token, stored
+ * as its hash (lookups) and sealed with `box` (shown to the creator again).
+ */
 export async function createPlan(
   db: Db,
-  args: { creatorSub: string; input: CreatePlanInput; sourcePlanId: string | null; now: Date },
+  args: { creatorSub: string; input: CreatePlanInput; sourcePlanId: string | null; box: ShareTokenBox; now: Date },
 ): Promise<{ plan: PlanRow; shareToken: string }> {
-  const { creatorSub, input, sourcePlanId, now } = args;
+  const { creatorSub, input, sourcePlanId, box, now } = args;
   assertDeadline(input.voteDeadline, now);
   const shareToken = newToken();
+  // The id is made here: the sealed token is bound to it.
+  const id = randomUUID();
   const plan = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(plans)
       .values({
+        id,
         creatorSub,
         title: input.title,
         activity: input.activity,
         area: input.area,
         budgetPerPerson: input.budgetPerPerson,
+        groupSize: input.groupSize,
         voteDeadline: input.voteDeadline,
         shareTokenHash: hashToken(shareToken),
+        shareTokenEnc: box.seal(shareToken, id),
         createdAt: now,
         updatedAt: now,
       })
@@ -155,6 +166,8 @@ export interface PlanSummary {
   voteDeadline: Date;
   createdAt: Date;
   participantCount: number;
+  /** The sealed share token (open it with the ShareTokenBox), null for a link made before it was kept. */
+  shareTokenEnc: string | null;
 }
 
 /** The creator's plans, newest first (retention applied first). */
@@ -174,6 +187,7 @@ export async function listCreatorPlans(db: Db, creatorSub: string, now: Date): P
       voteDeadline: plans.voteDeadline,
       createdAt: plans.createdAt,
       participantCount: counts.n,
+      shareTokenEnc: plans.shareTokenEnc,
     })
     .from(plans)
     .leftJoin(counts, eq(counts.planId, plans.id))
@@ -228,7 +242,8 @@ async function withCreatorPlan<T>(
 
 function sameOption(row: OptionRow, input: OptionInput): boolean {
   const startsAt = input.kind === 'time' ? input.startsAt.getTime() : null;
-  return row.label === input.label && (row.startsAt?.getTime() ?? null) === startsAt;
+  const mapUrl = input.kind === 'place' ? input.mapUrl : null;
+  return row.label === input.label && (row.startsAt?.getTime() ?? null) === startsAt && row.mapUrl === mapUrl;
 }
 
 /**
@@ -267,7 +282,10 @@ async function replaceOptions(tx: Db, plan: PlanRow, inputs: OptionInput[], now:
       const cleared = await tx.delete(votes).where(eq(votes.optionId, row.id)).returning({ participantId: votes.participantId });
       events.push({ planId: plan.id, actor: 'creator', type: 'option_edited', payload: { optionId: row.id, clearedVotes: cleared.length } });
     }
-    await tx.update(planOptions).set({ label: values.label, startsAt: values.startsAt, sortOrder: values.sortOrder }).where(eq(planOptions.id, row.id));
+    await tx
+      .update(planOptions)
+      .set({ label: values.label, mapUrl: values.mapUrl, startsAt: values.startsAt, sortOrder: values.sortOrder })
+      .where(eq(planOptions.id, row.id));
   }
   await logEvents(tx, now, events);
 }
@@ -333,10 +351,13 @@ export async function finishPlan(db: Db, planId: string, creatorSub: string, out
 }
 
 /** A new share link; the old one stops working at once. Guests keep their identity (their cookie is per plan). */
-export async function rotateShareLink(db: Db, planId: string, creatorSub: string, now: Date): Promise<string> {
+export async function rotateShareLink(db: Db, planId: string, creatorSub: string, box: ShareTokenBox, now: Date): Promise<string> {
   const shareToken = newToken();
   await withCreatorPlan(db, planId, creatorSub, 'rotateLink', now, async (tx, plan) => {
-    await tx.update(plans).set({ shareTokenHash: hashToken(shareToken), updatedAt: now }).where(eq(plans.id, plan.id));
+    await tx
+      .update(plans)
+      .set({ shareTokenHash: hashToken(shareToken), shareTokenEnc: box.seal(shareToken, plan.id), updatedAt: now })
+      .where(eq(plans.id, plan.id));
     await logEvents(tx, now, [{ planId: plan.id, actor: 'creator', type: 'link_rotated' }]);
   });
   return shareToken;

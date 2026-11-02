@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { ACTIVITIES, type OptionKind, RSVPS } from '../db/schema';
 import { HttpError } from '../http-error';
+import { isGoogleMapsLink } from './map-link';
 
 export const MAX_OPTIONS_PER_KIND = 10;
 /** Longest vote window a plan can be given (from now). */
@@ -43,8 +44,15 @@ const TimeOption = z.strictObject({
 const PlaceOption = z.strictObject({
   id: z.uuid().optional(),
   kind: z.literal('place'),
-  /** A place name or a pasted maps link. */
+  /** The place's name. */
   label: line(300),
+  /** A pasted Google Maps link of the place (https on Google's map hosts only); null or missing for none. */
+  mapUrl: z
+    .string()
+    .trim()
+    .refine(isGoogleMapsLink)
+    .nullish()
+    .transform((value) => value ?? null),
 });
 
 const OptionInput = z.discriminatedUnion('kind', [TimeOption, PlaceOption]);
@@ -67,6 +75,8 @@ const planFields = {
   activity: z.enum(ACTIVITIES),
   area: optionalLine(80),
   budgetPerPerson: z.number().int().min(0).max(100_000_000).nullish().transform((value) => value ?? null),
+  /** How many people the creator expects in the group; null when not said. */
+  groupSize: z.number().int().min(2).max(50).nullish().transform((value) => value ?? null),
   voteDeadline: instant,
 };
 
@@ -84,6 +94,7 @@ export const UpdatePlanInput = z.strictObject({
   activity: planFields.activity.optional(),
   area: planFields.area.optional(),
   budgetPerPerson: planFields.budgetPerPerson.optional(),
+  groupSize: planFields.groupSize.optional(),
   voteDeadline: planFields.voteDeadline.optional(),
   options: Options.optional(),
 });

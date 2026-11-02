@@ -23,22 +23,23 @@ import {
   updatePlan,
 } from './plan-store';
 import { type PlanView, buildPlanView, summaryView } from './plan-view';
+import { shareLink, storedShareLink } from './share-link';
+import { type ShareTokenBox, shareTokenBox } from './share-token-box';
 import { readAllGuestTokens } from './tokens';
+
+export type { ShareLink } from './share-link';
 
 export interface PlanRoutesOptions {
   config: ServerConfig;
   db: Db;
   now: () => Date;
+  /** Seals and opens the stored share tokens (one per app, from config.shareTokenKey). */
+  box: ShareTokenBox;
 }
 
-export interface ShareLink {
-  token: string;
-  /** The link to send to the group: PUBLIC_URL/k/<token>. */
-  url: string;
-}
-
-export function shareLink(config: ServerConfig, token: string): ShareLink {
-  return { token, url: `${config.publicOrigin}/k/${token}` };
+/** The box of the app's share-token key. */
+export function shareTokenBoxOf(config: ServerConfig): ShareTokenBox {
+  return shareTokenBox(config.shareTokenKey);
 }
 
 /** The `:id` of a creator route; anything but a uuid cannot name a plan (same 404 as a missing one). */
@@ -55,7 +56,7 @@ function creatorSubOf(res: Response): string {
   return sub;
 }
 
-export function planRoutes({ config, db, now }: PlanRoutesOptions): Router {
+export function planRoutes({ config, db, now, box }: PlanRoutesOptions): Router {
   const router = express.Router();
   const createLimit = hourlyLimit(config.planCreateLimitPerHour, (_req, res) => `sub:${creatorSubOf(res)}`);
 
@@ -66,7 +67,7 @@ export function planRoutes({ config, db, now }: PlanRoutesOptions): Router {
 
   const creatorView = async (plan: PlanRow, creatorSub: string, at: Date): Promise<PlanView> => {
     const participantId = await findParticipantId(db, plan, { sub: creatorSub, guestToken: null });
-    return buildPlanView(db, plan, { isCreator: true, participantId }, at);
+    return buildPlanView(db, plan, { isCreator: true, participantId }, at, storedShareLink(box, config.publicOrigin, plan));
   };
 
   /** The creator's plan after a change, as the creator sees it. */
@@ -87,8 +88,8 @@ export function planRoutes({ config, db, now }: PlanRoutesOptions): Router {
       const input = parseBody(CreatePlanInput, req.body);
       const at = now();
       const sourcePlanId = await findJoinedPlanId(db, readAllGuestTokens(req, config));
-      const { plan, shareToken } = await createPlan(db, { creatorSub, input, sourcePlanId, now: at });
-      res.status(201).json({ plan: await creatorView(plan, creatorSub, at), share: shareLink(config, shareToken) });
+      const { plan, shareToken } = await createPlan(db, { creatorSub, input, sourcePlanId, box, now: at });
+      res.status(201).json({ plan: await creatorView(plan, creatorSub, at), share: shareLink(config.publicOrigin, shareToken) });
     },
   );
 
@@ -96,7 +97,7 @@ export function planRoutes({ config, db, now }: PlanRoutesOptions): Router {
     const at = now();
     const creatorSub = await requireAccountSub(req, config, db, at);
     const plans = await listCreatorPlans(db, creatorSub, at);
-    res.json({ plans: plans.map(summaryView) });
+    res.json({ plans: plans.map((summary) => summaryView(summary, storedShareLink(box, config.publicOrigin, summary))) });
   });
 
   router.get('/api/plans/:id', async (req, res) => {
@@ -137,8 +138,8 @@ export function planRoutes({ config, db, now }: PlanRoutesOptions): Router {
   router.post('/api/plans/:id/rotate-link', async (req, res) => {
     const at = now();
     const creatorSub = await requireAccountSub(req, config, db, at);
-    const token = await rotateShareLink(db, planIdParam(req), creatorSub, at);
-    res.json({ share: shareLink(config, token) });
+    const token = await rotateShareLink(db, planIdParam(req), creatorSub, box, at);
+    res.json({ share: shareLink(config.publicOrigin, token) });
   });
 
   return router;

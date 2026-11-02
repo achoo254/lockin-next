@@ -2,9 +2,12 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { brandAssets } from './vite-brand.ts';
 
-/** The API in dev (apps/server, `pnpm dev`); production puts nginx in front of both. */
+/**
+ * The API in dev (apps/server, `pnpm dev`); production puts nginx in front of both. Plan links (/k/<token>) go to
+ * the server like in production: it sends this dev server's page back with the plan's link preview.
+ */
 const API = 'http://127.0.0.1:5300';
-const PROXY = { '/api': API, '/auth': API, '/healthz': API };
+const PROXY = { '/api': API, '/auth': API, '/healthz': API, '/k/': API };
 
 export default defineConfig({
   plugins: [react(), brandAssets()],

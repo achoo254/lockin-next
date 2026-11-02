@@ -93,7 +93,7 @@ export function renderIndexHtml(html: string, brand: LockinBrand): string {
     `<link rel="canonical" href="${origin}/" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:site_name" content="${escapeHtml(brand.appName)}" />`,
-    `<meta property="og:title" content="${escapeHtml(brand.appName)} · chốt kèo với nhóm bạn" />`,
+    `<meta property="og:title" content="${escapeHtml(brand.appName)} · chốt kèo với bạn bè hay đồng nghiệp" />`,
     `<meta property="og:description" content="${description}" />`,
     `<meta property="og:url" content="${origin}/" />`,
     `<meta property="og:locale" content="vi_VN" />`,

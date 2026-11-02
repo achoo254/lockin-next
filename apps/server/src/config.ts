@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
 const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
@@ -19,7 +20,19 @@ const Env = z.object({
   AUTH_CLIENT_ID: z.preprocess(emptyIsUnset, z.string().min(1).default(DEFAULT_CLIENT_ID)),
   /** Secret of the confidential client lockin-web. Unset: sign-in is off (guests still see the pages). */
   AUTH_CLIENT_SECRET: z.preprocess(emptyIsUnset, z.string().min(32).optional()),
+  /** 32 bytes, base64: encrypts each plan's share token so its creator can see the link again. */
+  SHARE_TOKEN_KEY: z.preprocess(emptyIsUnset, z.string().optional()),
 });
+
+/** Length of the AES-256-GCM key in SHARE_TOKEN_KEY. */
+const SHARE_TOKEN_KEY_BYTES = 32;
+
+/** SHARE_TOKEN_KEY as 32 bytes (base64 or base64url); null when it is not exactly that. */
+function decodeShareTokenKey(value: string): Buffer | null {
+  if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(value)) return null;
+  const bytes = Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+  return bytes.length === SHARE_TOKEN_KEY_BYTES ? bytes : null;
+}
 
 export interface AuthConfig {
   issuer: string;
@@ -49,6 +62,11 @@ export interface ServerConfig {
   joinLimitPerHour: number;
   /** Vote and going/not submissions per hour per IP. */
   voteLimitPerHour: number;
+  /**
+   * AES-256-GCM key of the stored share tokens (SHARE_TOKEN_KEY). Outside production a missing key is replaced by
+   * a random one for this process: links made before a restart then cannot be shown again (rotating makes a new one).
+   */
+  shareTokenKey: Buffer;
 }
 
 /** Validates env once at startup; throws naming the offending keys (never their values) so the process fails fast. */
@@ -62,7 +80,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const publicUrl = new URL(e.PUBLIC_URL);
   const issuerUrl = new URL(e.AUTH_ISSUER);
   if (production) {
-    const missing = [!e.DATABASE_URL && 'DATABASE_URL', !e.AUTH_CLIENT_SECRET && 'AUTH_CLIENT_SECRET'].filter(Boolean);
+    const missing = [!e.DATABASE_URL && 'DATABASE_URL', !e.AUTH_CLIENT_SECRET && 'AUTH_CLIENT_SECRET', !e.SHARE_TOKEN_KEY && 'SHARE_TOKEN_KEY'].filter(Boolean);
     if (missing.length > 0) throw new Error(`Invalid server env: ${missing.join(', ')} required in production`);
     if (publicUrl.protocol !== 'https:') throw new Error('Invalid server env: PUBLIC_URL must be https in production');
     if (e.PGLITE_DIR) throw new Error('Invalid server env: PGLITE_DIR is dev/test only');
@@ -74,6 +92,15 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   // The code exchange is only as trustworthy as the TLS it travels over.
   if (e.AUTH_CLIENT_SECRET && env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
     throw new Error('Invalid server env: NODE_TLS_REJECT_UNAUTHORIZED=0 is not allowed with sign-in');
+  }
+  let shareTokenKey: Buffer;
+  if (e.SHARE_TOKEN_KEY) {
+    const decoded = decodeShareTokenKey(e.SHARE_TOKEN_KEY);
+    if (!decoded) throw new Error(`Invalid server env: SHARE_TOKEN_KEY must be ${SHARE_TOKEN_KEY_BYTES} bytes in base64`);
+    shareTokenKey = decoded;
+  } else {
+    shareTokenKey = randomBytes(SHARE_TOKEN_KEY_BYTES);
+    console.warn('SHARE_TOKEN_KEY unset: using a random key for this process (share links made now cannot be shown after a restart)');
   }
   return {
     nodeEnv: e.NODE_ENV,
@@ -93,5 +120,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     planCreateLimitPerHour: 20,
     joinLimitPerHour: 30,
     voteLimitPerHour: 120,
+    shareTokenKey,
   };
 }

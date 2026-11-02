@@ -30,8 +30,20 @@ export const sessions = pgTable(
   (table) => [index('sessions_user_id_idx').on(table.userId)],
 );
 
-/** What a plan is for; the web app pre-fills the title from it. */
-export const ACTIVITIES = ['coffee', 'dinner', 'movie', 'karaoke', 'day_trip', 'other'] as const;
+/** What a plan is for (friends first, then work groups); the web app pre-fills the title from it. */
+export const ACTIVITIES = [
+  'coffee',
+  'dinner',
+  'movie',
+  'karaoke',
+  'day_trip',
+  'birthday',
+  'lunch',
+  'party',
+  'team_building',
+  'meeting',
+  'other',
+] as const;
 export type Activity = (typeof ACTIVITIES)[number];
 
 /** `open` → `locked` → `done`; `cancelled` and `expired` end a plan (see plans/plan-rules.ts). */
@@ -51,8 +63,9 @@ export type EventActor = (typeof EVENT_ACTORS)[number];
 const sqlList = (values: readonly string[]): ReturnType<typeof sql.raw> => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /**
- * A plan made by a signed-in account (`creator_sub`, the IdP subject). The share link carries a random token; only
- * its sha256 is stored. All times are UTC. `locked_option_ids`: the time and/or place the creator locked in.
+ * A plan made by a signed-in account (`creator_sub`, the IdP subject). The share link carries a random token: looked
+ * up by its sha256, and kept AES-256-GCM encrypted (`share_token_enc`, plans/share-token-box.ts) so the creator can
+ * see the link again; null for a plan whose link was made before that. All times are UTC. `locked_option_ids`: the time and/or place the creator locked in.
  */
 export const plans = pgTable(
   'plans',
@@ -64,9 +77,12 @@ export const plans = pgTable(
     area: text('area'),
     /** VND per person, the creator's estimate. */
     budgetPerPerson: integer('budget_per_person'),
+    /** How many people the creator expects (2–50), to tell the group how many have not voted yet. */
+    groupSize: integer('group_size'),
     voteDeadline: timestamp('vote_deadline', { withTimezone: true }).notNull(),
     status: text('status').$type<PlanStatus>().notNull().default('open'),
     shareTokenHash: text('share_token_hash').notNull().unique(),
+    shareTokenEnc: text('share_token_enc'),
     lockedOptionIds: uuid('locked_option_ids').array(),
     lockedAt: timestamp('locked_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
@@ -77,10 +93,14 @@ export const plans = pgTable(
     index('plans_vote_deadline_idx').on(table.voteDeadline),
     check('plans_status_check', sql`${table.status} in (${sqlList(PLAN_STATUSES)})`),
     check('plans_activity_check', sql`${table.activity} in (${sqlList(ACTIVITIES)})`),
+    check('plans_group_size_check', sql`${table.groupSize} is null or ${table.groupSize} between 2 and 50`),
   ],
 );
 
-/** A time (`starts_at`, label optional) or a place (label: free text or a maps link) people vote for. */
+/**
+ * A time (`starts_at`, label optional) or a place (label: its name) people vote for. A place may carry a pasted
+ * Google Maps link (`map_url`, checked by plans/map-link.ts).
+ */
 export const planOptions = pgTable(
   'plan_options',
   {
@@ -90,6 +110,7 @@ export const planOptions = pgTable(
       .references(() => plans.id, { onDelete: 'cascade' }),
     kind: text('kind').$type<OptionKind>().notNull(),
     label: text('label').notNull().default(''),
+    mapUrl: text('map_url'),
     startsAt: timestamp('starts_at', { withTimezone: true }),
     sortOrder: integer('sort_order').notNull(),
   },

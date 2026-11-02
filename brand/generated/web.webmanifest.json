@@ -2,14 +2,14 @@
   "id": "/",
   "name": "Lockin",
   "short_name": "Lockin",
-  "description": "Chốt kèo đi chơi với nhóm bạn bằng một link: bạn bè vote giờ và chỗ không cần tài khoản, bạn chốt là cả nhóm biết.",
+  "description": "Chốt kèo với bạn bè hay đồng nghiệp bằng một link: mọi người vote giờ và chỗ không cần tài khoản, bạn chốt là cả nhóm biết.",
   "lang": "vi",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "theme_color": "#f7f4ff",
-  "background_color": "#f7f4ff",
+  "theme_color": "#fbf8ef",
+  "background_color": "#fbf8ef",
   "categories": [
     "social",
     "lifestyle"

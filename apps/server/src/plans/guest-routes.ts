@@ -14,6 +14,7 @@ import { deleteAt } from './plan-rules';
 import { type PlanRow, type Requester, findParticipantId, findPlanByShareToken, joinPlan, recordLinkOpened, setRsvp, setVotes } from './plan-store';
 import type { PlanRoutesOptions } from './plan-routes';
 import { buildPlanView } from './plan-view';
+import { storedShareLink } from './share-link';
 import { isTokenShape, newToken, readGuestToken, setGuestToken } from './tokens';
 
 const notFound = (): HttpError => new HttpError(404, 'not-found');
@@ -24,7 +25,7 @@ function shareTokenParam(req: Request): string {
   return token;
 }
 
-export function guestRoutes({ config, db, now }: PlanRoutesOptions): Router {
+export function guestRoutes({ config, db, now, box }: PlanRoutesOptions): Router {
   const router = express.Router();
   const joinLimit = hourlyLimit(config.joinLimitPerHour);
   const voteLimit = hourlyLimit(config.voteLimitPerHour);
@@ -51,7 +52,9 @@ export function guestRoutes({ config, db, now }: PlanRoutesOptions): Router {
 
   const answer = async (res: Response, plan: PlanRow, requester: Requester, isCreator: boolean, at: Date): Promise<void> => {
     const participantId = await findParticipantId(db, plan, requester);
-    res.json({ plan: await buildPlanView(db, plan, { isCreator, participantId }, at) });
+    // The creator opening the page gets the link too (buildPlanView leaves it out for anyone else).
+    const share = isCreator ? storedShareLink(box, config.publicOrigin, plan) : null;
+    res.json({ plan: await buildPlanView(db, plan, { isCreator, participantId }, at, share) });
   };
 
   router.get('/api/k/:token', async (req, res) => {

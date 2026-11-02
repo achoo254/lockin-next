@@ -1,6 +1,9 @@
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/600.css';
-import '@fontsource/inter/800.css';
+import '@fontsource/be-vietnam-pro/400.css';
+import '@fontsource/be-vietnam-pro/500.css';
+import '@fontsource/be-vietnam-pro/700.css';
+import '@fontsource/be-vietnam-pro/800.css';
+import '@fontsource/bricolage-grotesque/700.css';
+import '@fontsource/bricolage-grotesque/800.css';
 import './ui/tokens.css';
 // The shared account menu's rules (shell-* classes only); app.css dresses them in the app's look.
 import '@achoo254/app-shell/app-shell.css';

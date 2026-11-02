@@ -21,8 +21,11 @@ mã ổn định ở bảng cuối. Mọi request đổi dữ liệu phải có 
 
 ## Token và cookie
 
-- Link chia sẻ `PUBLIC_URL/k/<token>`, token khách: 32 byte ngẫu nhiên, base64url (43 ký tự). Máy chủ chỉ lưu SHA-256.
-  Link chỉ được trả một lần khi tạo kèo và khi đổi link (máy chủ không giữ được link gốc).
+- Link chia sẻ `PUBLIC_URL/k/<token>`, token khách: 32 byte ngẫu nhiên, base64url (43 ký tự). Máy chủ tìm theo SHA-256.
+  Token chia sẻ còn được lưu mã hoá AES-256-GCM (`plans.share_token_enc`, khoá `SHARE_TOKEN_KEY`, dữ liệu xác thực kèm
+  là id kèo; [`share-token-box.ts`](../apps/server/src/plans/share-token-box.ts)) để người tạo xem lại link: mọi trả lời
+  cho người tạo có `plan.share` (`{ token, url }`, `null` khi kèo có link từ trước khi lưu mã hoá hoặc khoá đã đổi; khi
+  đó "đổi link" tạo link mới). Khách không bao giờ nhận `share`. Đổi link mã hoá lại token mới.
 - Khách: cookie `lockin_g_<plan id không gạch>` (production `__Host-lockin_g_…`), `HttpOnly`, `SameSite=Lax`, `Path=/`,
   `Secure` ở production, sống tới lúc kèo bị xoá. Mỗi kèo một cookie, đặt theo id kèo nên đổi link không làm mất khách.
   Cookie được cấp ở lần mở trang kèo đầu tiên (hoặc khi tham gia nếu chưa có). Máy khác là người khác.
@@ -34,14 +37,15 @@ Người tạo = có phiên đăng nhập (cookie `lockin_session`). Khách = ai
 
 | Method | Đường dẫn | Ai | Body | Trả về | Mã lỗi |
 |---|---|---|---|---|---|
-| POST | `/api/plans` | người tạo | `title` (1–80), `activity` (`coffee`·`dinner`·`movie`·`karaoke`·`day_trip`·`other`), `area?` (≤80), `budgetPerPerson?` (VND, 0–100 000 000), `voteDeadline` (ISO, sau bây giờ, ≤60 ngày), `options` (1–20, mỗi loại ≤10: `{kind:"time", startsAt, label?}` hoặc `{kind:"place", label}`), `creatorDisplayName?` (≤40, có thì người tạo tham gia luôn) | 201 `{ plan: PlanView, share: { token, url } }` | 401 `sign-in-required`, 400 `invalid-body`, 400 `invalid-deadline`, 429 `rate-limited` |
-| GET | `/api/plans` | người tạo | — | `{ plans: [{ id, title, activity, status, voteDeadline, createdAt, participantCount }] }` (mới nhất trước, ≤200) | 401 |
+| POST | `/api/plans` | người tạo | `title` (1–80), `activity` (`coffee`·`dinner`·`movie`·`karaoke`·`day_trip`·`birthday`·`lunch`·`party`·`team_building`·`meeting`·`other`), `area?` (≤80), `budgetPerPerson?` (VND, 0–100 000 000), `groupSize?` (2–50, số người dự kiến để nhắc ai chưa vote), `voteDeadline` (ISO, sau bây giờ, ≤60 ngày), `options` (1–20, mỗi loại ≤10: `{kind:"time", startsAt, label?}` hoặc `{kind:"place", label, mapUrl?}`; `mapUrl` chỉ nhận link https của Google Maps: `maps.app.goo.gl/…`, `goo.gl/maps/…`, `google.com/maps/place/…`, `google.com/maps/search/…`, [`map-link.ts`](../apps/server/src/plans/map-link.ts); máy chủ không mở link), `creatorDisplayName?` (≤40, có thì người tạo tham gia luôn; web điền sẵn tên tài khoản) | 201 `{ plan: PlanView, share: { token, url } }` | 401 `sign-in-required`, 400 `invalid-body`, 400 `invalid-deadline`, 429 `rate-limited` |
+| GET | `/api/plans` | người tạo | — | `{ plans: [{ id, title, activity, status, voteDeadline, createdAt, participantCount, shareUrl }] }` (mới nhất trước, ≤200; `shareUrl` null như `plan.share`) | 401 |
 | GET | `/api/plans/:id` | người tạo | — | `{ plan: PlanView }` | 401, 403 `not-creator`, 404 `not-found` |
 | PATCH | `/api/plans/:id` | người tạo | như tạo kèo, mọi trường tuỳ chọn; `options` là cả danh sách mới (có `id` = sửa/giữ, không `id` = thêm, thiếu = xoá) | `{ plan: PlanView }` | 401, 403, 404, 400 `invalid-body`·`invalid-deadline`·`invalid-option`, 409 `plan-not-open`·`plan-expired` |
 | POST | `/api/plans/:id/lock` | người tạo | `{ timeOptionId?, placeOptionId? }` | `{ plan: PlanView }` | 401, 403, 404, 400 `lock-choice-required`·`invalid-option`, 409 `plan-not-open`·`plan-expired` |
 | POST | `/api/plans/:id/cancel` | người tạo | — | `{ plan: PlanView }` | 401, 403, 404, 409 `plan-closed`·`plan-expired` |
 | POST | `/api/plans/:id/done` | người tạo | — | `{ plan: PlanView }` | 401, 403, 404, 409 `plan-not-locked`·`plan-expired` |
 | POST | `/api/plans/:id/rotate-link` | người tạo | — | `{ share: { token, url } }`; link cũ 404 ngay | 401, 403, 404, 409 `plan-expired` |
+| GET | `/k/:token` | ai có link | — | HTML: `index.html` của web với `og:title` (tên kèo), `og:description`, `og:url`, `og:image` (ảnh chung của app), `twitter:card`, `robots noindex`; `?lang=en` cho mô tả tiếng Anh. Token sai/đổi/sai dạng: cùng trang với thẻ chung của app, cùng mã 200 (không lộ link nào tồn tại). Không có tên người tham gia, không cấp cookie khách | 503 khi không đọc được trang |
 | GET | `/api/k/:token` | ai có link | — | `{ plan: PlanView }`; lần mở đầu cấp cookie khách | 404 `not-found` |
 | POST | `/api/k/:token/join` | khách hoặc người tạo | `{ displayName }` (1–40); gọi lại = đổi tên, giữ nguyên người | `{ plan: PlanView }` | 404, 400, 409 `plan-closed`·`plan-expired`·`guest-conflict`, 429 |
 | POST | `/api/k/:token/votes` | người đã tham gia | `{ optionIds: uuid[] }` (cả bộ; `[]` = rút hết) | `{ plan: PlanView }` | 404, 400 `invalid-option`, 409 `not-joined`·`plan-not-open`·`deadline-passed`·`plan-expired`, 429 |
@@ -54,17 +58,18 @@ Token sai, sai dạng, đã đổi, hay kèo đã xoá đều trả cùng một 
 ```ts
 {
   id?: string;                 // chỉ người tạo thấy
-  title; activity; area; budgetPerPerson; voteDeadline; readOnlyAt; status;
+  share?: { token; url } | null;  // chỉ người tạo thấy
+  title; activity; area; budgetPerPerson; groupSize; voteDeadline; readOnlyAt; status;
   creatorName: string | null;  // tên người tạo nhập trong kèo; null khi người tạo chưa tham gia
   lockedOptionIds: string[];
-  options: [{ id, kind, label, startsAt, votes }];          // giờ trước, rồi chỗ, theo thứ tự người tạo
+  options: [{ id, kind, label, mapUrl, startsAt, votes }];  // giờ trước, rồi chỗ, theo thứ tự người tạo
   participants: [{ id, displayName, rsvp, isCreator, optionIds }];  // theo thứ tự tham gia, không có giờ tham gia
   viewer: { isCreator, participantId };
   can: { join, vote, rsvp, edit, lock, cancel, done, rotateLink };  // việc người xem làm được lúc này
 }
 ```
 
-Không bao giờ có trong trả lời cho khách: tài khoản người tạo (sub, tên, email, ảnh), hash token, giờ tham gia, id kèo.
+Không bao giờ có trong trả lời cho khách: tài khoản người tạo (sub, tên, email, ảnh), hash hay bản mã hoá của token, link chia sẻ (`share`), giờ tham gia, id kèo.
 
 ## Giới hạn tần suất
 

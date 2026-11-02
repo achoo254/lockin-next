@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type DbHandle, openPglite } from '../db/client';
@@ -6,6 +7,7 @@ import { HttpError } from '../http-error';
 import { planBody } from '../../test/plan-browser';
 import { CreatePlanInput } from './plan-input';
 import { createPlan, findPlanByShareToken, finishPlan, joinPlan, lockPlan, setVotes, sweepPlans } from './plan-store';
+import { shareTokenBox } from './share-token-box';
 import { newToken } from './tokens';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -24,7 +26,7 @@ afterAll(async () => {
 
 async function seededPlan(sub: string): Promise<{ id: string; token: string }> {
   const { db } = database;
-  const { plan, shareToken } = await createPlan(db, { creatorSub: sub, input: CreatePlanInput.parse(planBody(t0.getTime())), sourcePlanId: null, now: t0 });
+  const { plan, shareToken } = await createPlan(db, { creatorSub: sub, input: CreatePlanInput.parse(planBody(t0.getTime())), sourcePlanId: null, box: shareTokenBox(randomBytes(32)), now: t0 });
   const guest = { sub: null, guestToken: newToken() };
   await joinPlan(db, shareToken, guest, 'Linh', t0);
   const options = await db.select().from(planOptions).where(eq(planOptions.planId, plan.id));

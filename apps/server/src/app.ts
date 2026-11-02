@@ -8,16 +8,22 @@ import type { Db } from './db/client';
 import { HttpError } from './http-error';
 import { safeErrorText } from './log-error';
 import { guestRoutes } from './plans/guest-routes';
-import { planRoutes } from './plans/plan-routes';
+import { planRoutes, shareTokenBoxOf } from './plans/plan-routes';
+import { type TemplateLoader, defaultTemplateLoader, ogPageRoutes } from './share/og-page';
 
 export interface AppDeps {
   config: ServerConfig;
   db: Db;
   now?: () => Date;
+  /** The page template of /k/<token> (tests pass one; default: share/og-page.ts defaultTemplateLoader). */
+  loadTemplate?: TemplateLoader;
 }
 
-/** The API: health check, sign-in, the creator's plan routes and the plan page's (guest) routes. The web app itself is static (nginx in production). */
-export function createApp({ config, db, now = () => new Date() }: AppDeps): Express {
+/**
+ * The API: health check, sign-in, the creator's plan routes and the plan page's (guest) routes, plus the plan link
+ * page /k/<token> (index.html with the plan's link preview). The rest of the web app is static (nginx in production).
+ */
+export function createApp({ config, db, now = () => new Date(), loadTemplate = defaultTemplateLoader(config) }: AppDeps): Express {
   const app = express();
   app.disable('x-powered-by');
   // nginx on the same host sets X-Forwarded-For; trust it from loopback only (rate limits use the client IP).
@@ -29,11 +35,14 @@ export function createApp({ config, db, now = () => new Date() }: AppDeps): Expr
     res.set('Cache-Control', 'no-store').type('text/plain').send('ok');
   });
 
+  app.use(ogPageRoutes({ config, db, now, loadTemplate }));
+
   app.use(requireSameOrigin(config.publicOrigin));
   app.use(express.json({ limit: '8kb' }));
   app.use(authRoutes({ config, db, now }));
-  app.use(planRoutes({ config, db, now }));
-  app.use(guestRoutes({ config, db, now }));
+  const box = shareTokenBoxOf(config);
+  app.use(planRoutes({ config, db, now, box }));
+  app.use(guestRoutes({ config, db, now, box }));
 
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'not-found')));
 
