@@ -4,7 +4,7 @@
  * creator's account (sub or profile), token hashes, exact join times. The plan id, its share link and its manage link
  * only go to its creator.
  */
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { type Activity, type OptionKind, type PlanStatus, type Rsvp, participants, planOptions, votes } from '../db/schema';
 import { type PlanAction, canDo, readOnlyAt } from './plan-rules';
@@ -85,7 +85,7 @@ export async function buildPlanView(
 ): Promise<PlanView> {
   const [options, people, ballots] = await Promise.all([
     db.select().from(planOptions).where(eq(planOptions.planId, plan.id)),
-    db.select().from(participants).where(eq(participants.planId, plan.id)).orderBy(asc(participants.joinedAt), asc(participants.id)),
+    db.select().from(participants).where(eq(participants.planId, plan.id)).orderBy(desc(participants.isCreator), asc(participants.joinedAt), asc(participants.id)),
     db.select({ participantId: votes.participantId, optionId: votes.optionId }).from(votes).where(eq(votes.planId, plan.id)),
   ]);
   const tally = new Map<string, number>();
