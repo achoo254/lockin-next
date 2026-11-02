@@ -64,11 +64,32 @@ describe('creating and listing plans', () => {
       ['place', 'Quán cà phê A'],
       ['place', 'Quán cà phê B'],
     ]);
-    expect(created.plan.participants).toEqual([{ id: created.plan.viewer.participantId, displayName: 'Minh', rsvp: null, isCreator: true, optionIds: [] }]);
+    expect(created.plan.participants).toEqual([{ id: created.plan.viewer.participantId, displayName: 'Minh', rsvp: 'going', isCreator: true, optionIds: [] }]);
     const id = created.plan.id ?? '';
     const [row] = await server.database.db.select().from(plans).where(eq(plans.id, id));
     expect(row?.shareTokenHash).toBe(hashToken(created.share.token));
     expect(JSON.stringify(row)).not.toContain(created.share.token);
+  });
+
+  it('counts the creator as going from the start, without a vote, and lets them change it', async () => {
+    const creator = await signedIn('creator-a');
+    const created = await newPlan(creator, { creatorDisplayName: 'Minh' });
+    const me = created.plan.viewer.participantId;
+    const [creatorRow] = await server.database.db.select().from(participants).where(eq(participants.planId, created.plan.id ?? ''));
+    expect(creatorRow).toMatchObject({ rsvp: 'going', creatorSub: 'creator-a' });
+    // Going is no vote: the creator picked nothing yet.
+    expect(created.plan.options.every((o) => o.votes === 0)).toBe(true);
+    // No rsvp event: nobody tapped anything.
+    const events = await server.database.db.select().from(planEvents).where(eq(planEvents.planId, created.plan.id ?? ''));
+    expect(events.map((e) => e.type).sort()).toEqual(['joined', 'plan_created']);
+
+    const changed = await creator.call(`/api/k/${created.share.token}/rsvp`, { method: 'POST', body: JSON.stringify({ rsvp: 'no' }) });
+    expect(changed.status).toBe(200);
+    expect(((await changed.json()) as PlanAnswer).plan.participants.find((p) => p.id === me)).toMatchObject({ rsvp: 'no', isCreator: true });
+
+    // Without a name the creator has not joined, so there is no one to count.
+    const nameless = await newPlan(creator);
+    expect(nameless.plan.participants).toEqual([]);
   });
 
   it('refuses a plan without a session, with a bad body, or with a deadline in the past', async () => {

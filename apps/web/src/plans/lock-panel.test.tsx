@@ -4,7 +4,7 @@ import type { PlanView } from '../api/plans-api';
 import { I18nProvider } from '../i18n/i18n';
 import { P1, P2, PLAN_ID, T1, T2, creatorPlan, makePlan, person, stubFetch } from '../test/plan-fixture';
 import { LockPanel } from './lock-panel';
-import { kindLeader } from './plan-format';
+import { goingNames, kindLeader, nudgeLine } from './plan-format';
 
 afterEach(() => {
   cleanup();
@@ -30,6 +30,17 @@ describe('locking a plan in', () => {
     expect(kindLeader(plan.options.filter((o) => o.kind === 'time'))).toEqual({ leaderId: T1, tie: [] });
     expect(kindLeader(plan.options.filter((o) => o.kind === 'place'))).toEqual({ leaderId: null, tie: [3, 3] });
     expect(kindLeader([{ ...plan.options[0], votes: 0 } as PlanView['options'][number]])).toEqual({ leaderId: null, tie: [] });
+  });
+
+  it('lists the creator first among the going, without counting their going as a vote', () => {
+    // The server makes the creator going when the plan is made; they have not voted yet.
+    const plan = makePlan({ groupSize: 4, participants: [person('g1', 'Linh', [T1], 'going'), person('me', 'Minh', [], 'going', true), person('g2', 'Tú', [T2], 'no')] });
+    expect(goingNames(plan)).toEqual(['Minh', 'Linh']);
+    expect(nudgeLine(plan)).toEqual({ kind: 'left', k: 2 });
+    // Once the creator says no, they leave the going list; the votes are the same.
+    const declined = makePlan({ groupSize: 4, participants: plan.participants.map((p) => (p.isCreator ? { ...p, rsvp: 'no' as const } : p)) });
+    expect(goingNames(declined)).toEqual(['Linh']);
+    expect(nudgeLine(declined)).toEqual({ kind: 'left', k: 2 });
   });
 
   it('pre-picks the time with most votes, waits for the creator on a tied place, then locks both', async () => {

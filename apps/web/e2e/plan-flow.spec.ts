@@ -23,6 +23,30 @@ async function shoot(page: Page, testInfo: TestInfo, name: string): Promise<void
   await page.setViewportSize({ width: 375, height: 900 });
 }
 
+/** Pastes text into a box the way a browser does (a cancelable paste event carrying the clipboard). */
+async function paste(page: Page, selector: string, text: string): Promise<void> {
+  await page.locator(selector).evaluate((box, value) => {
+    const data = new DataTransfer();
+    data.setData('text/plain', value);
+    box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  }, text);
+}
+
+/** Every "Mở bản đồ" label fits on one line, and nothing scrolls sideways at the narrowest phone. */
+async function placeOptionsFit(page: Page): Promise<void> {
+  for (const width of [360, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const lines = await page.locator('.map-link span').evaluateAll((labels) => labels.map((label) => label.getClientRects().length));
+    expect(lines.length).toBeGreaterThanOrEqual(4);
+    expect(lines.every((n) => n === 1)).toBe(true);
+    const box = await page.locator('.map-link').first().boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    if (width === 360) expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  }
+  await page.setViewportSize({ width: 375, height: 900 });
+}
+
 /** Console errors of a page (the run fails on any). */
 function consoleErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -69,6 +93,29 @@ test('a creator makes a plan, a guest votes without an account, the creator lock
   await page.fill('[data-id=place-0]', 'Quán A');
   await page.click('[data-id=add-place]');
   await page.fill('[data-id=place-1]', 'Quán B');
+  // A maps link typed key by key stays text until the box is left; a pasted one is attached at once.
+  const typedLink = 'https://www.google.com/maps/place/The+Workshop+Coffee/@10.77,106.70,17z';
+  await page.click('[data-id=add-place]');
+  await page.locator('[data-id=place-2]').pressSequentially(typedLink);
+  await expect(page.locator('[data-id=place-2]')).toHaveValue(typedLink);
+  await expect(page.locator('[data-id=place-map-2]')).toHaveCount(0);
+  await page.locator('[data-id=place-2]').blur();
+  await expect(page.locator('[data-id=place-2]')).toHaveValue('The Workshop Coffee');
+  await page.click('[data-id=add-place]');
+  await paste(page, '[data-id=place-3]', 'https://www.google.com/maps/place/C%C3%A0+Ph%C3%AA+V%E1%BB%A3t/@10.78,106.70,17z');
+  await expect(page.locator('[data-id=place-3]')).toHaveValue('Cà Phê Vợt');
+  await expect(page.locator('[data-id=place-map-3]')).toContainText('Đã gắn link bản đồ');
+  // The remove button stays on the line of the box, the attached link goes below both.
+  for (const width of [375, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const input = await page.locator('[data-id=place-3]').boundingBox();
+    const remove = await page.getByRole('button', { name: 'Xoá chỗ 4' }).boundingBox();
+    const attached = await page.locator('[data-id=place-map-3]').boundingBox();
+    if (!input || !remove || !attached) throw new Error('place row not laid out');
+    expect(Math.abs(remove.y + remove.height / 2 - (input.y + input.height / 2))).toBeLessThan(2);
+    expect(attached.y).toBeGreaterThanOrEqual(input.y + input.height - 1);
+  }
+  await page.setViewportSize({ width: 375, height: 900 });
   await page.fill('[data-id=form-group-size]', '3');
   await shoot(page, testInfo, '02-create');
   await page.click('[data-id=form-submit]');
@@ -100,16 +147,19 @@ test('a creator makes a plan, a guest votes without an account, the creator lock
   await expect(guest.locator('[data-id=vote-sent]')).toBeVisible();
   await expect(guest.locator('[data-id=nudge]')).toContainText('Còn 2 người chưa vote 👀');
   await expect(guest.locator('[data-id=invite-card]')).toBeVisible();
+  await placeOptionsFit(guest);
   await shoot(guest, testInfo, '04-guest-vote');
 
   // The creator locks it in: the leaders are picked already.
   await page.goto(planPath);
   await expect(page.locator('[data-id=lock-panel]')).toContainText('1/3 người đã vote');
+  await placeOptionsFit(page);
   await shoot(page, testInfo, '05-creator-lock');
   await page.click('[data-id=lock-submit]');
   await expect(page.locator('[data-id=ticket]')).toContainText('Quán B');
   await expect(page.locator('[data-id=stamp]')).toHaveClass(/is-new/);
-  await expect(page.locator('[data-id=ticket-going]')).toContainText('Linh');
+  // The creator is going from the start (no RSVP tapped), listed first.
+  await expect(page.locator('[data-id=ticket-going] li')).toHaveText([/Người Thử E2E$/, /Linh$/]);
   await storyImage(page, testInfo, '07-story-cafe');
 
   // The guest sees the ticket after a refresh; the stamp lands once in this browser.

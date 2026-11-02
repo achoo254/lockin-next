@@ -4,7 +4,7 @@
  * vote deadline (3 hours, tonight 22:00, 24 hours by default, or any other), and optional area, budget and group size.
  * Every time is Vietnam time. buildCreateInput() turns the form into the API body or the first problem.
  */
-import { type FormEvent, type ReactNode, useId, useState } from 'react';
+import { type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactNode, useId, useState } from 'react';
 import { ACTIVITIES, type Activity, type CreatePlanInput, createPlan } from '../api/plans-api';
 import { type Translate, useI18n } from '../i18n/i18n';
 import type { MessageKey } from '../i18n/messages';
@@ -46,8 +46,9 @@ export interface PlaceRow {
 }
 
 /**
- * What typing or pasting into a place box does: a Google Maps link is attached to the place (its name pre-filled
- * from a place link; a short link says nothing, so the name stays to be typed); anything else is the name.
+ * What a whole place box holds once pasted, left or entered: a Google Maps link is attached to the place (its name
+ * pre-filled from a place link; a short link says nothing, so the name stays to be typed); anything else is the name.
+ * Typing never calls this: a link typed key by key is a valid link long before it is complete.
  */
 export function placeInput(row: PlaceRow, value: string): PlaceRow {
   if (isGoogleMapsLink(value)) return { ...row, mapUrl: value.trim(), label: placeNameFromMapsLink(value) ?? '' };
@@ -208,6 +209,31 @@ export function PlanForm({ defaultName, now = () => new Date(), onCreated }: Pla
     });
   }
 
+  const setPlace = (key: string, change: (row: PlaceRow) => PlaceRow): void =>
+    setForm((current) => ({ ...current, places: current.places.map((row) => (row.key === key ? change(row) : row)) }));
+
+  /** A paste that leaves a whole map link in the box attaches it at once (the name taken from the link). */
+  function pastePlace(row: PlaceRow, event: ClipboardEvent<HTMLInputElement>): void {
+    const box = event.currentTarget;
+    const pasted = event.clipboardData.getData('text');
+    const value = box.value.slice(0, box.selectionStart ?? box.value.length) + pasted + box.value.slice(box.selectionEnd ?? box.value.length);
+    if (!isGoogleMapsLink(value)) return;
+    event.preventDefault();
+    setPlace(row.key, (current) => placeInput(current, value));
+  }
+
+  /** Leaving the box, or Enter in it, attaches a typed link once the whole box is one; true when it did. */
+  function settlePlace(row: PlaceRow): boolean {
+    if (!isGoogleMapsLink(row.label)) return false;
+    setPlace(row.key, (current) => placeInput(current, current.label));
+    return true;
+  }
+
+  function placeKey(row: PlaceRow, event: KeyboardEvent<HTMLInputElement>): void {
+    // Enter on a typed link attaches it instead of sending the form.
+    if (event.key === 'Enter' && settlePlace(row)) event.preventDefault();
+  }
+
   const setTime = (key: string, patch: Partial<TimeRow>): void =>
     setForm((current) => ({ ...current, times: current.times.map((row) => (row.key === key ? { ...row, ...patch, quick: null } : row)) }));
 
@@ -350,9 +376,20 @@ export function PlanForm({ defaultName, now = () => new Date(), onCreated }: Pla
                 maxLength={300}
                 aria-label={`${t('form.place')} ${index + 1}`}
                 placeholder={t('form.placeHint')}
-                onChange={(e) => update({ places: form.places.map((other) => (other.key === row.key ? placeInput(other, e.target.value) : other)) })}
+                onChange={(e) => setPlace(row.key, (current) => ({ ...current, label: e.target.value }))}
+                onPaste={(e) => pastePlace(row, e)}
+                onBlur={() => settlePlace(row)}
+                onKeyDown={(e) => placeKey(row, e)}
                 data-id={`place-${index}`}
               />
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={t('form.removePlace', { n: index + 1 })}
+                onClick={() => update({ places: form.places.filter((other) => other.key !== row.key) })}
+              >
+                <Icon name="close" />
+              </button>
               {row.mapUrl && (
                 <span className="map-attached" data-id={`place-map-${index}`}>
                   <span>
@@ -369,14 +406,6 @@ export function PlanForm({ defaultName, now = () => new Date(), onCreated }: Pla
                   </button>
                 </span>
               )}
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={t('form.removePlace', { n: index + 1 })}
-                onClick={() => update({ places: form.places.filter((other) => other.key !== row.key) })}
-              >
-                <Icon name="close" />
-              </button>
             </li>
           ))}
         </ol>

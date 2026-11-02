@@ -762,7 +762,7 @@ button.opt[disabled] {
   background: var(--c-lock-soft);
 }
 .map-link span {
-  max-width: 4.5em;
+  white-space: nowrap;
 }
 .icon.accent {
   color: var(--c-text);

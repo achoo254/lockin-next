@@ -54,7 +54,8 @@ function optionRows(planId: string, options: OptionInput[]): Array<typeof planOp
 }
 
 /**
- * Makes a plan and its options; the creator joins it at once when a name is given. Returns the share token, stored
+ * Makes a plan and its options; the creator joins it at once when a name is given, as going (a plan they make is one
+ * they go to; they can still change it). Returns the share token, stored
  * as its hash (lookups) and sealed with `box` (shown to the creator again).
  */
 export async function createPlan(
@@ -90,7 +91,7 @@ export async function createPlan(
     if (input.creatorDisplayName) {
       const [me] = await tx
         .insert(participants)
-        .values({ planId: row.id, displayName: input.creatorDisplayName, creatorSub, joinedAt: now })
+        .values({ planId: row.id, displayName: input.creatorDisplayName, creatorSub, rsvp: 'going', joinedAt: now })
         .returning({ id: participants.id });
       events.push({ planId: row.id, actor: 'creator', type: 'joined', participantId: me?.id ?? null });
     }

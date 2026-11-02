@@ -151,6 +151,62 @@ describe('the create form', () => {
     }
   });
 
+  describe('a place box', () => {
+    const LINK = 'https://www.google.com/maps/place/The+Workshop+Coffee/@10.77,106.70,17z';
+    const box = (): HTMLInputElement => document.querySelector('[data-id=place-0]') as HTMLInputElement;
+    const typeInto = (input: HTMLInputElement, text: string): void => {
+      for (let end = 1; end <= text.length; end += 1) fireEvent.change(input, { target: { value: text.slice(0, end) } });
+    };
+
+    it('keeps a link typed key by key as text while typing, then attaches it on leaving the box', () => {
+      show();
+      typeInto(box(), LINK);
+      // The link was valid many keys before its end: nothing was taken from it on the way.
+      expect(box().value).toBe(LINK);
+      expect(document.querySelector('[data-id=place-map-0]')).toBeNull();
+      fireEvent.blur(box());
+      expect(box().value).toBe('The Workshop Coffee');
+      expect(document.querySelector('[data-id=place-map-0]')?.textContent).toContain('Đã gắn link bản đồ');
+    });
+
+    it('attaches a typed link on Enter instead of sending the form, and leaves plain text alone', () => {
+      const api = stubFetch(() => Response.json({}, { status: 500 }));
+      try {
+        show();
+        fireEvent.change(box(), { target: { value: 'Quán A' } });
+        fireEvent.blur(box());
+        expect(box().value).toBe('Quán A');
+        fireEvent.change(box(), { target: { value: LINK } });
+        expect(fireEvent.keyDown(box(), { key: 'Enter' })).toBe(false);
+        expect(box().value).toBe('The Workshop Coffee');
+        // Enter in a box with a name only goes on to the form as before.
+        expect(fireEvent.keyDown(box(), { key: 'Enter' })).toBe(true);
+        expect(api.calls).toEqual([]);
+      } finally {
+        api.restore();
+      }
+    });
+
+    it('attaches a pasted link at once, and lets other pastes through', () => {
+      show();
+      const pasted = 'https://www.google.com/maps/place/C%C3%A0+Ph%C3%AA+V%E1%BB%A3t/@10.77,106.69,17z';
+      expect(fireEvent.paste(box(), { clipboardData: { getData: () => pasted } })).toBe(false);
+      expect(box().value).toBe('Cà Phê Vợt');
+      expect(document.querySelector('[data-id=place-map-0]')).not.toBeNull();
+      // Pasting a name after the link is attached is ordinary text.
+      expect(fireEvent.paste(box(), { clipboardData: { getData: () => ' Quận 1' } })).toBe(true);
+      expect(document.querySelector('[data-id=place-map-0]')).not.toBeNull();
+    });
+
+    it('keeps the remove button on the box’s line, with the attached link below it', () => {
+      show();
+      fireEvent.paste(box(), { clipboardData: { getData: () => LINK } });
+      const row = box().closest('li');
+      const parts = Array.from(row?.children ?? []).map((child) => child.getAttribute('data-id') ?? child.getAttribute('aria-label') ?? child.tagName);
+      expect(parts.slice(1)).toEqual(['place-0', 'Xoá chỗ 1', 'place-map-0']);
+    });
+  });
+
   it('says what to fix instead of sending, and shows the API refusal in words', async () => {
     const api = stubFetch(() => Response.json({ error: 'rate-limited' }, { status: 429 }));
     try {
