@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { type SessionState, signInHref } from '../api/session-api';
+import type { SessionState } from '../api/session-api';
 import { type Translate, useI18n } from '../i18n/i18n';
 import { Icon } from '../ui/icon';
 import { MY_PLANS_PATH } from './my-plans-page';
@@ -7,18 +7,15 @@ import { NEW_PLAN_PATH } from './new-plan-page';
 
 export { NEW_PLAN_PATH } from './new-plan-page';
 
-/** What `?login=` on the way back from sign-in says, if anything. */
-export function loginNotice(search: string, t: Translate): string | null {
-  const login = new URLSearchParams(search).get('login');
+/** What the address says on arriving home, if anything: `?login=` back from sign-in, `?manage=invalid` from a bad manage link. */
+export function homeNotice(search: string, t: Translate): string | null {
+  const query = new URLSearchParams(search);
+  if (query.get('manage') === 'invalid') return t('manage.invalid');
+  const login = query.get('login');
   if (login === 'fail') return t('login.fail');
   if (login === 'unavailable') return t('login.unavailable');
   if (login === 'busy') return t('login.busy');
   return null;
-}
-
-/** "Lên kèo": straight there when signed in, otherwise through sign-in and back to it. */
-export function createPlanHref(session: SessionState, locale: string): string {
-  return session.status === 'ready' && session.signedIn ? NEW_PLAN_PATH : signInHref(locale, NEW_PLAN_PATH);
 }
 
 /** A made-up plan drawn like the real vote board, plus a work example, so friends and coworkers see it fits them. */
@@ -62,11 +59,14 @@ function SamplePlans(): ReactNode {
 
 const STEPS = ['home.step1', 'home.step2', 'home.step3', 'home.step4'] as const;
 
-/** The welcome (mockup screen 01): one value line, sample plans, the four steps and one main button. */
+/**
+ * The welcome (mockup screen 01): one value line, sample plans, the four steps and one main button, straight to the
+ * form (no account needed to make a plan). "Kèo của tôi" lists the account's plans and this browser's.
+ */
 export function HomePage({ session }: { session: SessionState }): ReactNode {
-  const { t, locale } = useI18n();
-  const signedIn = session.status === 'ready' && session.signedIn;
-  const notice = loginNotice(window.location.search, t);
+  const { t } = useI18n();
+  const ready = session.status === 'ready';
+  const notice = homeNotice(window.location.search, t);
 
   return (
     <div className="home" data-id="home">
@@ -93,11 +93,11 @@ export function HomePage({ session }: { session: SessionState }): ReactNode {
         ))}
       </ol>
       <div className="action-bar home-cta">
-        <a className="btn btn-primary" href={createPlanHref(session, locale)} data-id="create-plan">
+        <a className="btn btn-primary" href={NEW_PLAN_PATH} data-id="create-plan">
           <Icon name="plus" />
           {t('home.cta')}
         </a>
-        {signedIn && (
+        {ready && (
           <a className="btn btn-text align-center" href={MY_PLANS_PATH} data-id="home-my-plans">
             {t('home.myPlans')}
           </a>

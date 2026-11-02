@@ -149,7 +149,7 @@ describe('sign-in page', () => {
         </LockinPage>
       </I18nProvider>,
     );
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Đăng nhập để tạo kèo');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Đăng nhập để giữ kèo của bạn');
     expect(document.querySelector('[data-id=sign-in-cta]')?.getAttribute('href')).toBe('/auth/login?return=%2Fnew&lang=vi');
     expect(document.querySelector('[data-id=sign-in-cta]')?.textContent).toBe('Đăng nhập bằng hoandat.com');
     // The header's sign-in there goes back to the same page as the card.

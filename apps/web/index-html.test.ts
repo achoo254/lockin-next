@@ -50,8 +50,12 @@ describe('nginx logs', () => {
     for (const line of accessLogs) expect(line).toMatch(/^access_log (off|\S+ lockin_notoken);$/);
   });
 
-  it('keeps plan links out of the access log and the error log', () => {
-    const block = /location ~ \^\/\(api\/\)\?k\/ \{([^}]*)\}/.exec(conf())?.[1] ?? '';
+  it('keeps plan links and manage links out of the access log and the error log', () => {
+    const match = /location ~ (\S+) \{([^}]*)\}/.exec(conf());
+    const pattern = new RegExp(match?.[1] ?? '$^');
+    for (const path of ['/k/abc', '/api/k/abc/join', '/m/0b6f2a52-9a7e-4c51-8a35-2d7d1f0c9a11.abc']) expect(pattern.test(path)).toBe(true);
+    for (const path of ['/api/plans', '/auth/login', '/my']) expect(pattern.test(path)).toBe(false);
+    const block = match?.[2] ?? '';
     expect(block).toContain('access_log off;');
     expect(block).toMatch(/error_log \S+ crit;/);
   });

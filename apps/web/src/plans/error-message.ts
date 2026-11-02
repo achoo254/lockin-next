@@ -20,6 +20,8 @@ const KNOWN: Record<string, MessageKey> = {
   'not-joined': 'error.not-joined',
   'deadline-passed': 'error.deadline-passed',
   'forbidden-origin': 'error.forbidden-origin',
+  'name-required': 'error.name-required',
+  'plan-owned': 'error.plan-owned',
   network: 'error.network',
 };
 

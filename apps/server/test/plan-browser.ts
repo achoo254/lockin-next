@@ -1,6 +1,6 @@
 /** A browser with its own cookie jar, and plan request bodies, for the plan API tests. */
 import type { PlanView } from '../src/plans/plan-view';
-import type { ShareLink } from '../src/plans/plan-routes';
+import type { ManageLink, ShareLink } from '../src/plans/plan-routes';
 import { api } from './sign-in';
 import type { TestServer } from './test-server';
 
@@ -10,6 +10,7 @@ export interface PlanAnswer {
 
 export interface CreatedPlan extends PlanAnswer {
   share: ShareLink;
+  manage: ManageLink;
 }
 
 /** Keeps the cookies the server sets, like a browser (one per name, deleted when expired). */
@@ -26,6 +27,11 @@ export class Browser {
 
   cookieNames(): string[] {
     return [...this.cookies.keys()];
+  }
+
+  /** The value of one cookie, if the browser holds it. */
+  cookie(name: string): string | undefined {
+    return this.cookies.get(name);
   }
 
   async call(path: string, init: RequestInit = {}): Promise<Response> {

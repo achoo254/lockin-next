@@ -2,7 +2,8 @@
  * The plan page's API, for anyone holding the share link: read the plan, join with a display name (or rename),
  * vote, and say whether one goes. No account needed: a guest is the random token in an HttpOnly cookie for this
  * plan, handed out when they join (only reading the plan sets no cookie, so a browser does not pile up one cookie
- * per plan it merely looked at). The creator, when signed in, is recognised by account instead.
+ * per plan it merely looked at). The creator is recognised as on the creator routes instead: by account, or by the
+ * plan's creator cookie.
  *
  * A wrong, rotated or malformed token is the same 404 `not-found` as a deleted plan.
  */
@@ -13,11 +14,20 @@ import { dailyOpenDedupe } from './daily-open-dedupe';
 import { hourlyLimit, hourlyQuota, ipAndLinkKey, overHourlyQuota } from './hourly-limit';
 import { JoinInput, RsvpInput, VotesInput, parseBody } from './plan-input';
 import { readOnlyAt } from './plan-rules';
-import { type PlanRow, type Requester, findParticipantId, findPlanByShareToken, joinPlan, recordLinkOpened, setRsvp, setVotes } from './plan-store';
-import type { PlanRoutesOptions } from './plan-routes';
+import {
+  type PlanRow,
+  type Requester,
+  findParticipantId,
+  findPlanByShareToken,
+  isPlanCreator,
+  joinPlan,
+  recordLinkOpened,
+  setRsvp,
+  setVotes,
+} from './plan-store';
+import { type PlanRoutesOptions, creatorLinks, keepCreatorCookie } from './plan-routes';
 import { buildPlanView } from './plan-view';
-import { storedShareLink } from './share-link';
-import { isTokenShape, newToken, readGuestToken, setGuestToken } from './tokens';
+import { isTokenShape, newToken, readCreatorToken, readGuestToken, setGuestToken } from './tokens';
 
 const notFound = (): HttpError => new HttpError(404, 'not-found');
 
@@ -49,8 +59,9 @@ export function guestRoutes({ config, db, now, box }: PlanRoutesOptions): Router
     const plan = await findPlanByShareToken(db, token, at);
     if (!plan) throw notFound();
     const sub = await findAccountSub(req, config, db, at);
-    const isCreator = sub !== null && sub === plan.creatorSub;
-    return { token, plan, isCreator, requester: { sub, guestToken: isCreator ? null : readGuestToken(req, config, plan.id) } };
+    const creatorToken = readCreatorToken(req, config, plan.id);
+    const isCreator = isPlanCreator(plan, { sub, creatorToken });
+    return { token, plan, isCreator, requester: { sub, creatorToken, guestToken: isCreator ? null : readGuestToken(req, config, plan.id) } };
   };
 
   /**
@@ -63,9 +74,9 @@ export function guestRoutes({ config, db, now, box }: PlanRoutesOptions): Router
 
   const answer = async (res: Response, plan: PlanRow, requester: Requester, isCreator: boolean, at: Date): Promise<void> => {
     const participantId = await findParticipantId(db, plan, requester);
-    // The creator opening the page gets the link too (buildPlanView leaves it out for anyone else).
-    const share = isCreator ? storedShareLink(box, config.publicOrigin, plan) : null;
-    res.json({ plan: await buildPlanView(db, plan, { isCreator, participantId }, at, share) });
+    // The creator opening the page gets the links too (buildPlanView leaves them out for anyone else).
+    if (isCreator) keepCreatorCookie(res, config, plan, requester, at);
+    res.json({ plan: await buildPlanView(db, plan, { isCreator, participantId }, at, isCreator ? creatorLinks(box, config, plan) : null) });
   };
 
   router.get('/api/k/:token', openCountQuota, async (req, res) => {

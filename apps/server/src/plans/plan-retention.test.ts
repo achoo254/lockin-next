@@ -72,8 +72,8 @@ describe('plan retention', () => {
     // Read-only: still readable, no change accepted.
     expect((await findPlanByShareToken(db, token, after(31)))?.status).toBe('expired');
     expect(await refusal(setVotes(db, token, { sub: null, guestToken: newToken() }, [], after(31)))).toBe('plan-expired');
-    expect(await refusal(lockPlan(db, id, 'sweep-a', {}, after(31)))).toBe('plan-expired');
-    expect(await refusal(finishPlan(db, id, 'sweep-a', 'cancelled', after(31)))).toBe('plan-expired');
+    expect(await refusal(lockPlan(db, id, { sub: 'sweep-a' }, {}, after(31)))).toBe('plan-expired');
+    expect(await refusal(finishPlan(db, id, { sub: 'sweep-a' }, 'cancelled', after(31)))).toBe('plan-expired');
     expect(await sweepPlans(db, after(31))).toEqual({ expired: 0, deleted: 0 });
 
     expect(await rowsOf(id)).toEqual([1, 4, 1, 4, 4]);
@@ -85,7 +85,7 @@ describe('plan retention', () => {
   it('keeps done and cancelled plans as they are until deletion', async () => {
     const { db } = database;
     const { id } = await seededPlan('sweep-b');
-    await finishPlan(db, id, 'sweep-b', 'cancelled', t0);
+    await finishPlan(db, id, { sub: 'sweep-b' }, 'cancelled', t0);
     expect(await sweepPlans(db, after(45))).toEqual({ expired: 0, deleted: 0 });
     const [row] = await db.select().from(plans).where(eq(plans.id, id));
     expect(row?.status).toBe('cancelled');

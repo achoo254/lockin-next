@@ -1,9 +1,10 @@
 /**
  * The funnel in numbers, read from plans, votes and plan_events: plans made, opens → joins → votes, plans locked
- * and done, creators coming back, guests who became creators. Plans past retention are gone, so the numbers cover
- * the last DELETE_AFTER_DAYS days of deadlines at most. `excludeSubs` drops those creators' plans (the owner's own).
+ * and done, creators coming back, guests who became creators, plans made signed in or signed out and saved to an
+ * account later. Plans past retention are gone, so the numbers cover the last DELETE_AFTER_DAYS days of deadlines at
+ * most. `excludeSubs` drops those creators' plans (the owner's own); plans not saved to an account always count.
  */
-import { and, count, countDistinct, eq, gte, inArray, isNotNull, notInArray } from 'drizzle-orm';
+import { and, count, countDistinct, eq, gte, inArray, isNotNull, isNull, notInArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { PLAN_STATUSES, type PlanStatus, planEvents, plans, votes } from '../db/schema';
 
@@ -26,15 +27,25 @@ export interface PlanStats {
   locked: number;
   done: number;
   cancelled: number;
+  /** Accounts that own a plan (plans made signed out count once they are saved to an account). */
   creators: number;
   returningCreators: number;
-  /** Creators who made a plan in a browser that had joined another plan as a guest. */
+  /**
+   * Creators who made a plan in a browser that had joined another plan as a guest: accounts, plus each plan made
+   * signed out and not saved (such a creator has no identity across plans).
+   */
   guestsTurnedCreators: number;
+  /** Plans made signed in, and signed out (`plan_created` creatorKind; older plans were all made signed in). */
+  madeSignedIn: number;
+  madeSignedOut: number;
+  /** Plans made signed out and saved to an account later (`plan_claimed`). */
+  claimed: number;
 }
 
 export async function computeStats(db: Db, options: { excludeSubs?: string[] } = {}): Promise<PlanStats> {
   const excluded = options.excludeSubs ?? [];
-  const counted = excluded.length > 0 ? notInArray(plans.creatorSub, excluded) : undefined;
+  // `not in` alone would drop the plans without an account too (null is never "not in" a list).
+  const counted = excluded.length > 0 ? or(isNull(plans.creatorSub), notInArray(plans.creatorSub, excluded)) : undefined;
 
   const statusRows = await db.select({ status: plans.status, n: count() }).from(plans).where(counted).groupBy(plans.status);
   const byStatus: Record<PlanStatus, number> = { open: 0, locked: 0, done: 0, cancelled: 0, expired: 0 };
@@ -50,7 +61,7 @@ export async function computeStats(db: Db, options: { excludeSubs?: string[] } =
     })
     .from(planEvents)
     .innerJoin(plans, eq(plans.id, planEvents.planId))
-    .where(and(counted, inArray(planEvents.type, ['link_opened', 'joined', 'voted', 'locked', 'done', 'cancelled'])))
+    .where(and(counted, inArray(planEvents.type, ['link_opened', 'joined', 'voted', 'locked', 'done', 'cancelled', 'plan_claimed'])))
     .groupBy(planEvents.type, planEvents.actor);
   const event = (type: string, actor: string | null, field: 'n' | 'participants' | 'plans'): number =>
     eventRows.filter((row) => row.type === type && (actor === null || row.actor === actor)).reduce((sum, row) => sum + Number(row[field]), 0);
@@ -65,7 +76,7 @@ export async function computeStats(db: Db, options: { excludeSubs?: string[] } =
 
   const creations = await db.select({ sub: plans.creatorSub, at: plans.createdAt }).from(plans).where(counted).orderBy(plans.createdAt);
   const firstAndNext = new Map<string, Date[]>();
-  for (const row of creations) firstAndNext.set(row.sub, [...(firstAndNext.get(row.sub) ?? []), row.at]);
+  for (const row of creations) if (row.sub !== null) firstAndNext.set(row.sub, [...(firstAndNext.get(row.sub) ?? []), row.at]);
   let returningCreators = 0;
   for (const times of firstAndNext.values()) {
     const [first, second] = times;
@@ -73,10 +84,20 @@ export async function computeStats(db: Db, options: { excludeSubs?: string[] } =
   }
 
   const [converted] = await db
-    .select({ n: countDistinct(plans.creatorSub) })
+    .select({ n: sql<number>`count(distinct coalesce(${plans.creatorSub}, ${plans.id}::text))` })
     .from(planEvents)
     .innerJoin(plans, eq(plans.id, planEvents.planId))
     .where(and(counted, eq(planEvents.type, 'plan_created'), isNotNull(planEvents.sourcePlanId)));
+
+  const creatorKind = sql<string | null>`${planEvents.payload}->>'creatorKind'`;
+  const kindRows = await db
+    .select({ kind: creatorKind, n: count() })
+    .from(planEvents)
+    .innerJoin(plans, eq(plans.id, planEvents.planId))
+    .where(and(counted, eq(planEvents.type, 'plan_created')))
+    .groupBy(creatorKind);
+  const madeSignedOut = kindRows.filter((row) => row.kind === 'guest').reduce((sum, row) => sum + Number(row.n), 0);
+  const madeSignedIn = kindRows.filter((row) => row.kind !== 'guest').reduce((sum, row) => sum + Number(row.n), 0);
 
   return {
     plans: creations.length,
@@ -91,6 +112,9 @@ export async function computeStats(db: Db, options: { excludeSubs?: string[] } =
     creators: firstAndNext.size,
     returningCreators,
     guestsTurnedCreators: Number(converted?.n ?? 0),
+    madeSignedIn,
+    madeSignedOut,
+    claimed: event('plan_claimed', null, 'plans'),
   };
 }
 
@@ -116,6 +140,10 @@ export function formatStats(stats: PlanStats, label: string): string {
     `  creators:                ${stats.creators}`,
     `  back within ${RETURN_WINDOW_DAYS} days:     ${stats.returningCreators} (${rate(stats.returningCreators, stats.creators)})`,
     `  guests turned creators:  ${stats.guestsTurnedCreators}`,
+    `Signed in or not`,
+    `  made signed in:          ${stats.madeSignedIn}`,
+    `  made signed out:         ${stats.madeSignedOut} (${rate(stats.madeSignedOut, stats.plans)} of plans)`,
+    `  saved to an account:     ${stats.claimed} (${rate(stats.claimed, stats.madeSignedOut)} of made signed out)`,
   ].join('\n');
 }
 

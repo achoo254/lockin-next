@@ -32,7 +32,9 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
         {
           heading: 'Người tạo kèo',
           items: [
-            'Người tạo kèo đăng nhập qua tài khoản hoandat.com (auth.hoandat.com) với quyền "openid profile email": app nhận mã định danh tài khoản, tên hiển thị (không có thì tên người dùng), email và địa chỉ ảnh đại diện.',
+            'Tạo kèo không cần tài khoản: chỉ cần tên của bạn trong kèo. Khi đó trình duyệt của bạn nhận một cookie riêng của kèo (__Host-lockin_c_…) chứa mã ngẫu nhiên để nhận ra người tạo; máy chủ chỉ lưu bản băm của mã và cookie hết hạn khi kèo bị xoá. Cùng mã đó nằm trong link quản lý riêng app đưa bạn một lần sau khi tạo; ai mở link quản lý thì trình duyệt đó cũng quản lý được kèo, nên đừng gửi nó vào nhóm. Máy chủ giữ thêm một bản mã hoá (AES-256-GCM) của mã để bạn xem lại link quản lý trên trình duyệt đã có quyền.',
+            'Bạn có thể lưu kèo vào tài khoản hoandat.com bất cứ lúc nào: kèo được gắn với tài khoản và bạn quản lý nó trên máy nào cũng được. Một kèo đã gắn vào tài khoản không bị tài khoản khác lấy đi.',
+            'Người tạo kèo đăng nhập (nếu muốn) qua tài khoản hoandat.com (auth.hoandat.com) với quyền "openid profile email": app nhận mã định danh tài khoản, tên hiển thị (không có thì tên người dùng), email và địa chỉ ảnh đại diện.',
             'Tên, email và địa chỉ ảnh được lưu cùng tài khoản và cập nhật mỗi lần đăng nhập, chỉ để hiện trong menu tài khoản. App không gửi email cho bạn, không dùng chúng vào việc khác và không chia sẻ chúng với ai.',
             'Ảnh đại diện do trình duyệt tải thẳng từ nơi giữ ảnh (Google hoặc GitHub), app không lưu bản sao. Đăng nhập bằng Apple thì không có ảnh.',
             'Một cookie phiên (__Host-lockin_session) giữ bạn đăng nhập tối đa 30 ngày; máy chủ chỉ lưu bản băm của nó. Đăng xuất là huỷ phiên trên máy chủ.',
@@ -44,7 +46,7 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
             'Với mỗi kèo, máy chủ lưu những gì người tạo nhập: tên kèo, loại hoạt động, khu vực, ngân sách mỗi người và số người trong nhóm (nếu có), hạn vote, các lựa chọn giờ và chỗ, và giờ, chỗ đã chốt.',
             'Bạn bè tham gia không cần tài khoản: máy chủ lưu tên hiển thị họ tự nhập, các lựa chọn họ vote và việc họ có tham gia hay không. Khi tham gia một kèo, trình duyệt nhận một cookie chứa mã ngẫu nhiên của riêng kèo đó, để nhận ra cùng trình duyệt khi mở lại; máy chủ chỉ lưu bản băm của mã đó, và cookie hết hạn khi kèo thành chỉ-đọc. Chỉ mở xem kèo thì không có cookie nào. Để đếm số người mở link mà không đếm trùng, máy chủ giữ trong bộ nhớ, không ghi lại, một mã băm của địa chỉ IP và trình duyệt, xoá khi sang ngày mới.',
             'Ai có link kèo đều thấy tên kèo, các lựa chọn, tên hiển thị của người tham gia và lượt vote của họ. Link chỉ chứa mã ngẫu nhiên; máy chủ tìm kèo bằng bản băm của mã, và giữ thêm một bản mã hoá (AES-256-GCM) để người tạo xem lại và gửi lại link. Người tạo đổi được link khi link bị gửi ra ngoài nhóm. Thẻ xem trước của link chỉ có tên kèo, không có tên người tham gia.',
-            'App ghi nhật ký thay đổi của kèo (tạo, vote, chốt, huỷ) để đếm số kèo được tạo và được chốt; nhật ký không chứa tên người vote.',
+            'App ghi nhật ký thay đổi của kèo (tạo, vote, chốt, huỷ, lưu vào tài khoản) để đếm số kèo được tạo và được chốt, và bao nhiêu kèo được tạo khi chưa đăng nhập; nhật ký không chứa tên người vote hay người tạo.',
           ],
         },
         {
@@ -72,7 +74,9 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
         {
           heading: 'People who make plans',
           items: [
-            'The person making a plan signs in with a hoandat.com account (auth.hoandat.com) with the "openid profile email" scopes: the app receives an account identifier, the display name (or username if there is none), the email and the address of the profile picture.',
+            'Making a plan needs no account: only your name in the plan. Your browser then gets a cookie of its own for that plan (__Host-lockin_c_…) holding a random code that marks you as its maker; the server stores only the hash of the code, and the cookie expires when the plan is deleted. The same code is in the private manage link the app gives you once after making the plan; whoever opens the manage link can manage the plan from that browser too, so keep it out of the group chat. The server also keeps an encrypted copy (AES-256-GCM) of the code so you can see the manage link again in a browser that already manages the plan.',
+            'You can save a plan to a hoandat.com account at any time: the plan is then tied to the account and you manage it from any device. A plan saved to an account is never taken over by another account.',
+            'The person making a plan can sign in with a hoandat.com account (auth.hoandat.com) with the "openid profile email" scopes: the app receives an account identifier, the display name (or username if there is none), the email and the address of the profile picture.',
             'The name, email and picture address are stored with the account and updated at each sign-in, only to show in the account menu. The app sends you no email, uses them for nothing else and shares them with no one.',
             'Your browser loads the profile picture straight from where it is kept (Google or GitHub); the app keeps no copy. Signing in with Apple gives no picture.',
             'A session cookie (__Host-lockin_session) keeps you signed in for up to 30 days; the server stores only its hash. Signing out ends the session on the server.',
@@ -84,7 +88,7 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
             'For each plan the server keeps what its maker typed: the title, kind of activity, area, budget per person and group size (if any), vote deadline, the time and place options, and the time and place locked in.',
             'Friends join without an account: the server keeps the display name they type, the options they vote for and whether they are joining. On joining a plan the browser gets a cookie with a random code for that plan, to recognise the same browser when it comes back; the server stores only its hash, and the cookie expires when the plan turns read-only. Only viewing a plan sets no cookie. To count how many people open a link without counting anyone twice, the server keeps a hash of the IP address and browser in memory only, never written down, and drops it at the end of the day.',
             "Anyone with a plan's link sees its title, options, the display names of the people who joined and their votes. The link holds only a random code; the server finds the plan by the code's hash and also keeps an encrypted copy (AES-256-GCM) so the maker can see and resend the link. The maker can change the link if it travels outside the group. The link preview shows only the plan's title, never the names of the people in it.",
-            'The app logs the changes of a plan (made, voted, locked, cancelled) to count how many plans are made and locked in; the log holds no voter names.',
+            'The app logs the changes of a plan (made, voted, locked, cancelled, saved to an account) to count how many plans are made and locked in, and how many are made without signing in; the log holds no names of voters or makers.',
           ],
         },
         {

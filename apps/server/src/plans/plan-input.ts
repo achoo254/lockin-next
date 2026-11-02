@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ACTIVITIES, type OptionKind, RSVPS } from '../db/schema';
 import { HttpError } from '../http-error';
 import { isGoogleMapsLink } from './map-link';
+import { isTokenShape } from './tokens';
 
 export const MAX_OPTIONS_PER_KIND = 10;
 /** Longest vote window a plan can be given (from now). */
@@ -116,6 +117,9 @@ export const VotesInput = z.strictObject({
 });
 
 export const RsvpInput = z.strictObject({ rsvp: z.enum(RSVPS) });
+
+/** Saving a plan to the account: the creator token from a manage link, when the browser has no creator cookie. */
+export const ClaimInput = z.strictObject({ token: z.string().refine(isTokenShape).optional() });
 
 /** Route ids are uuids; anything else cannot name a plan, so it is the same 404 as a missing one. */
 export const PlanId = z.uuid();

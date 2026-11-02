@@ -92,10 +92,11 @@ describe('creating and listing plans', () => {
     expect(nameless.plan.participants).toEqual([]);
   });
 
-  it('refuses a plan without a session, with a bad body, or with a deadline in the past', async () => {
+  it('refuses a plan made signed out without a name, with a bad body, or with a deadline in the past', async () => {
     const anonymous = new Browser(server);
     const body = JSON.stringify(planBody(clock));
-    expect(await (await anonymous.call('/api/plans', { method: 'POST', body })).json()).toEqual({ error: 'sign-in-required' });
+    // Signed out, a plan needs the creator's name.
+    expect(await (await anonymous.call('/api/plans', { method: 'POST', body })).json()).toEqual({ error: 'name-required' });
     const creator = await signedIn('creator-a');
     for (const bad of [{ title: '' }, { activity: 'rave' }, { options: [] }, { budgetPerPerson: -1 }, { unknown: 1 }, { title: 'two\nlines' }]) {
       const res = await creator.call('/api/plans', { method: 'POST', body: JSON.stringify(planBody(clock, bad)) });
@@ -131,7 +132,8 @@ describe('creating and listing plans', () => {
     expect(await peek.json()).toEqual({ error: 'not-creator' });
     expect((await mine.call('/api/plans/00000000-0000-4000-8000-000000000000')).status).toBe(404);
     expect((await mine.call('/api/plans/not-a-uuid')).status).toBe(404);
-    expect((await new Browser(server).call('/api/plans')).status).toBe(401);
+    // A browser with no account and no plan of its own has nothing to list.
+    expect(await (await new Browser(server).call('/api/plans')).json()).toEqual({ plans: [] });
   });
 });
 

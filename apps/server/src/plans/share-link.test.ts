@@ -6,6 +6,7 @@ import { type FakeIdp, startFakeIdp } from '../../test/fake-idp';
 import { Browser, type CreatedPlan, type PlanAnswer, planBody } from '../../test/plan-browser';
 import { signIn } from '../../test/sign-in';
 import { type TestServer, startTestServer } from '../../test/test-server';
+import { manageSealContext } from './share-link';
 import { shareTokenBox } from './share-token-box';
 import { newToken } from './tokens';
 
@@ -34,6 +35,13 @@ describe('the share token box', () => {
     const flipped = `${ciphertext?.[0] === 'A' ? 'B' : 'A'}${ciphertext?.slice(1) ?? ''}`;
     expect(box.open([version, iv, flipped, tag].join('.'), planId)).toBeNull();
     for (const junk of [null, '', 'v1', 'v2.a.b.c', `${sealed}.extra`, 'v1.%%%.b.c']) expect(box.open(junk, planId)).toBeNull();
+  });
+
+  it('keeps a sealed share token and a sealed creator token of the same plan from opening as each other', () => {
+    const sealedManage = box.seal(token, manageSealContext(planId));
+    expect(box.open(sealedManage, manageSealContext(planId))).toBe(token);
+    expect(box.open(sealedManage, planId)).toBeNull();
+    expect(box.open(box.seal(token, planId), manageSealContext(planId))).toBeNull();
   });
 
   it('refuses a key that is not 32 bytes', () => {

@@ -64,6 +64,13 @@ describe('buildCreateInput', () => {
     expect(buildCreateInput(form({ deadline: 'custom', deadlineDate: '2027-03-01', deadlineTime: '10:00' }), NOW)).toEqual({ ok: false, error: 'form.error.deadline' });
   });
 
+  it('needs the creator’s name when signed out, not when signed in', () => {
+    expect(buildCreateInput(form({ name: '  ' }), NOW, true)).toEqual({ ok: false, error: 'form.error.name' });
+    expect(buildCreateInput(form({ name: '  ' }), NOW, false).ok).toBe(true);
+    const built = buildCreateInput(form({ name: ' Linh ' }), NOW, true);
+    expect(built.ok && built.input.creatorDisplayName).toBe('Linh');
+  });
+
   it('knows when the quick times and deadlines fall, and which have passed', () => {
     expect(quickTimeAt('noon', NOW)?.toISOString()).toBe('2026-11-06T05:00:00.000Z');
     expect(quickTimeAt('tonight', NOW)?.toISOString()).toBe('2026-11-06T12:00:00.000Z');
@@ -115,7 +122,7 @@ describe('the create form', () => {
   }
 
   it('fills the title from the kind, adds quick times, and sends the plan with the creator name and group size', async () => {
-    const api = stubFetch(() => Response.json({ plan: creatorPlan(), share: { token: 'x', url: 'https://x/k/x' } }, { status: 201 }));
+    const api = stubFetch(() => Response.json({ plan: creatorPlan(), share: { token: 'x', url: 'https://x/k/x' }, manage: { url: 'https://x/m/x' } }, { status: 201 }));
     try {
       const onCreated = show();
       fireEvent.click(screen.getByRole('button', { name: '🍱 Ăn trưa' }));

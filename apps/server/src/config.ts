@@ -58,6 +58,9 @@ export interface ServerConfig {
   signInLimitPer15Min: number;
   /** Plans a signed-in account can make per hour. */
   planCreateLimitPerHour: number;
+  /** Plans someone signed out can make per hour, and per day, per client IP. */
+  guestPlanCreateLimitPerHourPerIp: number;
+  guestPlanCreateLimitPerDayPerIp: number;
   /**
    * Guest limits per hour, counted per (client IP, plan link) so a whole office or carrier NAT behind one address
    * can still join one plan together: joins (and renames), vote submissions, going/not answers.
@@ -125,6 +128,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       : null,
     signInLimitPer15Min: 100,
     planCreateLimitPerHour: 20,
+    guestPlanCreateLimitPerHourPerIp: 10,
+    guestPlanCreateLimitPerDayPerIp: 30,
     joinLimitPerHour: 60,
     voteLimitPerHour: 300,
     rsvpLimitPerHour: 300,

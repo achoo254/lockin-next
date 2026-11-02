@@ -1,6 +1,7 @@
 /**
- * /k/<token>: the plan page. Guests vote (no sign-in ever), the signed-in creator locks it in on the same page, and
- * once locked everyone sees the ticket. No realtime: the page loads once and on the header's refresh button.
+ * /k/<token>: the plan page. Guests vote (no sign-in ever), the creator (by account, or by this browser's creator
+ * cookie) locks it in on the same page, and once locked everyone sees the ticket. No realtime: the page loads once and
+ * on the header's refresh button.
  */
 import { type ReactNode, useEffect, useState } from 'react';
 import { ApiError } from '../api/api-client';
@@ -13,6 +14,7 @@ import { errorMessage } from '../plans/error-message';
 import { LockPanel } from '../plans/lock-panel';
 import { optionsOf } from '../plans/plan-format';
 import { FormError, InviteCard, LoadingCard, NudgeCard, OptionRow, PlanHead, StateCard } from '../plans/plan-parts';
+import { ClaimNotice, SavePlanCard, useClaimFromUrl } from '../plans/save-plan';
 import { PlanTicket } from '../plans/plan-ticket';
 import { VoteBoard } from '../plans/vote-board';
 import { formatVnDateTime } from '../plans/vn-time';
@@ -103,7 +105,15 @@ function LockedActions({ plan, onChange }: { plan: PlanView; onChange(plan: Plan
   );
 }
 
-function PlanBody({ plan, token, signedIn, onChange }: { plan: PlanView; token: string; signedIn: boolean; onChange(plan: PlanView): void }): ReactNode {
+interface PlanBodyProps {
+  plan: PlanView;
+  token: string;
+  path: string;
+  session: SessionState;
+  onChange(plan: PlanView): void;
+}
+
+function PlanBody({ plan, token, path, session, onChange }: PlanBodyProps): ReactNode {
   const { t, locale } = useI18n();
   const [sentNow, setSentNow] = useState(false);
   const now = new Date();
@@ -122,7 +132,7 @@ function PlanBody({ plan, token, signedIn, onChange }: { plan: PlanView; token: 
           <StateCard icon="clock" title={t('state.readOnlyTitle')} text={t('state.readOnlyText')} dataId="state-expired" />
         )}
         <Tally plan={plan} />
-        {!isCreator && <InviteCard signedIn={signedIn} />}
+        {!isCreator && <InviteCard />}
       </>
     );
   }
@@ -132,10 +142,11 @@ function PlanBody({ plan, token, signedIn, onChange }: { plan: PlanView; token: 
       <>
         <PlanTicket plan={plan} link={link} />
         {isCreator && <LockedActions plan={plan} onChange={onChange} />}
+        {isCreator && <SavePlanCard plan={plan} session={session} returnPath={path} variant="locked" onSaved={onChange} />}
         {!isCreator && plan.can.rsvp && (
           <VoteBoard key={`rsvp-${plan.viewer.participantId ?? 'new'}`} plan={plan} token={token} mode="rsvp" onChange={onChange} onSent={() => setSentNow(true)} />
         )}
-        {!isCreator && <InviteCard signedIn={signedIn} />}
+        {!isCreator && <InviteCard />}
       </>
     );
   }
@@ -161,7 +172,7 @@ function PlanBody({ plan, token, signedIn, onChange }: { plan: PlanView; token: 
       {!plan.can.vote && <Tally plan={plan} />}
       {hasVoted && plan.can.vote && <NudgeCard plan={plan} link={link} />}
       <VoteBoard plan={plan} token={token} mode={plan.can.vote ? 'vote' : 'rsvp'} onChange={onChange} onSent={() => setSentNow(true)} />
-      {hasVoted && <InviteCard signedIn={signedIn} />}
+      {hasVoted && <InviteCard />}
     </>
   );
 }
@@ -170,7 +181,7 @@ export function PlanPage({ token, path, session }: { token: string; path: string
   const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
-  const signedIn = session.status === 'ready' && session.signedIn;
+  const claim = useClaimFromUrl(session, (plan) => setLoad({ status: 'ready', plan }));
 
   useEffect(() => {
     let live = true;
@@ -213,11 +224,12 @@ export function PlanPage({ token, path, session }: { token: string; path: string
         </button>
       </StateCard>
     );
-  else body = <PlanBody plan={load.plan} token={token} signedIn={signedIn} onChange={(plan) => setLoad({ status: 'ready', plan })} />;
+  else body = <PlanBody plan={load.plan} token={token} path={path} session={session} onChange={(plan) => setLoad({ status: 'ready', plan })} />;
 
   return (
     <LockinPage path={path} session={session} actions={actions} guestPage>
       <div className="column stack-lg" data-id="plan-page">
+        <ClaimNotice state={claim} />
         {body}
       </div>
     </LockinPage>

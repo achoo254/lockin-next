@@ -9,6 +9,9 @@ export type Rsvp = (typeof RSVPS)[number];
 
 const ShareLinkSchema = z.object({ token: z.string(), url: z.string() });
 export type ShareLink = z.infer<typeof ShareLinkSchema>;
+/** The creator's private link: whoever opens it can manage the plan (never for the group chat). */
+const ManageLinkSchema = z.object({ url: z.string() });
+export type ManageLink = z.infer<typeof ManageLinkSchema>;
 
 const OptionSchema = z.object({
   id: z.string(),
@@ -35,6 +38,8 @@ export type PlanStatus = z.infer<typeof PlanStatusSchema>;
 const PlanViewSchema = z.object({
   id: z.optional(z.string()),
   share: z.optional(z.nullable(ShareLinkSchema)),
+  manage: z.optional(z.nullable(ManageLinkSchema)),
+  savedToAccount: z.optional(z.boolean()),
   title: z.string(),
   activity: z.enum(ACTIVITIES),
   area: z.nullable(z.string()),
@@ -62,7 +67,7 @@ const PlanViewSchema = z.object({
 export type PlanView = z.infer<typeof PlanViewSchema>;
 
 const PlanAnswer = z.object({ plan: PlanViewSchema });
-const CreatedAnswer = z.object({ plan: PlanViewSchema, share: ShareLinkSchema });
+const CreatedAnswer = z.object({ plan: PlanViewSchema, share: ShareLinkSchema, manage: ManageLinkSchema });
 const ShareAnswer = z.object({ share: ShareLinkSchema });
 const SummarySchema = z.object({
   id: z.string(),
@@ -73,6 +78,7 @@ const SummarySchema = z.object({
   createdAt: z.string(),
   participantCount: z.number(),
   shareUrl: z.nullable(z.string()),
+  savedToAccount: z.boolean(),
 });
 export type PlanSummary = z.infer<typeof SummarySchema>;
 const ListAnswer = z.object({ plans: z.array(SummarySchema) });
@@ -110,13 +116,15 @@ export const joinPlan = async (token: string, displayName: string): Promise<Plan
 export const sendVotes = async (token: string, optionIds: string[]): Promise<PlanView> => (await call(PlanAnswer, guestPath(token, '/votes'), post({ optionIds }))).plan;
 export const sendRsvp = async (token: string, rsvp: Rsvp): Promise<PlanView> => (await call(PlanAnswer, guestPath(token, '/rsvp'), post({ rsvp }))).plan;
 
-export const createPlan = (input: CreatePlanInput): Promise<{ plan: PlanView; share: ShareLink }> => call(CreatedAnswer, '/api/plans', post(input));
+export const createPlan = (input: CreatePlanInput): Promise<{ plan: PlanView; share: ShareLink; manage: ManageLink }> => call(CreatedAnswer, '/api/plans', post(input));
 export const listPlans = async (): Promise<PlanSummary[]> => (await call(ListAnswer, '/api/plans')).plans;
 export const fetchCreatorPlan = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id))).plan;
 export const lockPlan = async (id: string, choice: { timeOptionId?: string; placeOptionId?: string }): Promise<PlanView> =>
   (await call(PlanAnswer, planPath(id, '/lock'), post(choice))).plan;
 export const cancelPlan = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id, '/cancel'), post())).plan;
 export const markDone = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id, '/done'), post())).plan;
+/** Saves the plan to the signed-in account (this browser's creator cookie is the proof). */
+export const claimPlan = async (id: string): Promise<PlanView> => (await call(PlanAnswer, planPath(id, '/claim'), post())).plan;
 export const rotateLink = async (id: string): Promise<ShareLink> => (await call(ShareAnswer, planPath(id, '/rotate-link'), post())).share;
 
 /** The path of a share link (/k/<token>) from its full URL. */

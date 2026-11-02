@@ -3,17 +3,18 @@
 Thư mục repo: `lockin-next` (tên hiển thị lấy từ [`brand.config.json`](brand.config.json), không có hậu tố `-next`).
 Chạy tại `https://lockin.hoandat.com`, thuộc tầng giải trí của hệ sinh thái hoandat.com.
 
-Nhóm bạn chốt kèo đi chơi bằng một link: người tạo (đăng nhập tài khoản hoandat.com) tạo kèo với vài lựa chọn giờ và
-chỗ, gửi một link vào nhóm Zalo hay Messenger; bạn bè mở link, nhập tên và vote, không cần tài khoản; người tạo chốt
+Nhóm bạn chốt kèo đi chơi bằng một link: ai cũng tạo được kèo (không cần tài khoản, chỉ cần tên) với vài lựa chọn giờ
+và chỗ, gửi một link vào nhóm Zalo hay Messenger; bạn bè mở link, nhập tên và vote, không cần tài khoản; người tạo chốt
 giờ và chỗ, cả nhóm thấy kết quả và ai đi. Miễn phí, không gói, không quảng cáo.
 
-**Trạng thái:** máy chủ đã có dữ liệu kèo, luật vote/chốt, API người tạo và API trang kèo cho khách, nhật ký phễu
-và `pnpm stats` (xem [`docs/plans-api.md`](docs/plans-api.md)). Giao diện tạo kèo (`/new`), trang kèo (`/k/<token>`)
-và thẻ xem trước link vẫn là trang "sắp có", đến ở bước sau của plan Lockin trong workspace `hoandat-app`.
+**Trạng thái:** đang chạy: tạo kèo (`/new`), màn gửi link (`/plans/<id>`), trang kèo (`/k/<token>`) với thẻ xem trước
+link, "Kèo của tôi" (`/plans`), nhật ký phễu và `pnpm stats` (xem [`docs/plans-api.md`](docs/plans-api.md)).
 
-Nút "Tạo kèo" ở trang chủ: đã đăng nhập thì mở `/new`, chưa thì đi qua đăng nhập (`/auth/login?return=/new`) rồi quay
-lại. Nút "Đăng ký…" ở header mở thẳng màn tạo tài khoản hoandat.com (`/auth/login?signup=1`, máy chủ thêm
-`prompt=create`); nút "Đăng nhập" thì không.
+Nút "Lên kèo" ở trang chủ mở thẳng `/new`, không cần đăng nhập. Tạo khi chưa đăng nhập: trình duyệt giữ quyền người tạo
+bằng cookie `__Host-lockin_c_<id kèo>`, và người tạo nhận một **link quản lý** riêng (`/m/<id kèo>.<token>`) để mở kèo
+trên máy khác; màn gửi link và lúc chốt mời "Lưu kèo vào tài khoản hoandat.com (miễn phí)", đi qua đăng ký/đăng nhập rồi
+quay lại với `?claim=<id kèo>` để gắn kèo vào tài khoản. Tạo khi đã đăng nhập: kèo thuộc tài khoản ngay. Nút "Đăng nhập"
+ở header vẫn có cho người chưa đăng nhập.
 
 ## Cấu trúc
 

@@ -1,15 +1,15 @@
 /**
  * What the API answers about a plan. Anyone with the link sees the plan, its options with vote counts, and the
  * display names, votes and going/not of the people who joined (as the privacy page says). Never in it: the
- * creator's account (sub or profile), token hashes, exact join times. The plan id and its share link only go to its
- * creator.
+ * creator's account (sub or profile), token hashes, exact join times. The plan id, its share link and its manage link
+ * only go to its creator.
  */
 import { asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { type Activity, type OptionKind, type PlanStatus, type Rsvp, participants, planOptions, votes } from '../db/schema';
 import { type PlanAction, canDo, readOnlyAt } from './plan-rules';
 import type { PlanRow, PlanSummary } from './plan-store';
-import type { ShareLink } from './share-link';
+import type { ManageLink, ShareLink } from './share-link';
 
 export interface OptionView {
   id: string;
@@ -35,6 +35,10 @@ export interface PlanView {
   id?: string;
   /** Only for the creator: the link to send to the group, null when it cannot be shown again (rotate it). */
   share?: ShareLink | null;
+  /** Only for the creator: the private link that hands the creator's rights to another browser; null before it existed. */
+  manage?: ManageLink | null;
+  /** Only for the creator: whether the plan is saved to an account (else it lives in the creator's browser only). */
+  savedToAccount?: boolean;
   title: string;
   activity: Activity;
   area: string | null;
@@ -62,13 +66,19 @@ export interface PlanView {
 const CREATOR_ACTIONS: PlanAction[] = ['edit', 'lock', 'cancel', 'done', 'rotateLink'];
 const KIND_ORDER: Record<OptionKind, number> = { time: 0, place: 1 };
 
-/** `creatorShare`: the plan's link, included only when the viewer is its creator. */
+/** The plan's links as its creator sees them (plan-routes.ts creatorLinks). */
+export interface CreatorLinks {
+  share: ShareLink | null;
+  manage: ManageLink | null;
+}
+
+/** `links`: the plan's share and manage links, included only when the viewer is its creator. */
 export async function buildPlanView(
   db: Db,
   plan: PlanRow,
   viewer: { isCreator: boolean; participantId: string | null },
   now: Date,
-  creatorShare: ShareLink | null = null,
+  links: CreatorLinks | null = null,
 ): Promise<PlanView> {
   const [options, people, ballots] = await Promise.all([
     db.select().from(planOptions).where(eq(planOptions.planId, plan.id)),
@@ -93,7 +103,7 @@ export async function buildPlanView(
     rotateLink: allowed('rotateLink'),
   };
   return {
-    ...(viewer.isCreator ? { id: plan.id, share: creatorShare } : {}),
+    ...(viewer.isCreator ? { id: plan.id, share: links?.share ?? null, manage: links?.manage ?? null, savedToAccount: plan.creatorSub !== null } : {}),
     title: plan.title,
     activity: plan.activity,
     area: plan.area,
@@ -102,7 +112,7 @@ export async function buildPlanView(
     voteDeadline: plan.voteDeadline.toISOString(),
     readOnlyAt: readOnlyAt(plan.voteDeadline).toISOString(),
     status: plan.status,
-    creatorName: people.find((person) => person.creatorSub !== null)?.displayName ?? null,
+    creatorName: people.find((person) => person.isCreator)?.displayName ?? null,
     lockedOptionIds: plan.lockedOptionIds ?? [],
     options: options
       .sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.sortOrder - b.sortOrder)
@@ -118,7 +128,7 @@ export async function buildPlanView(
       id: person.id,
       displayName: person.displayName,
       rsvp: person.rsvp,
-      isCreator: person.creatorSub !== null,
+      isCreator: person.isCreator,
       optionIds: byParticipant.get(person.id) ?? [],
     })),
     viewer,
@@ -136,6 +146,8 @@ export interface PlanSummaryView {
   participantCount: number;
   /** The plan's link (the list is the creator's own), null when it cannot be shown again. */
   shareUrl: string | null;
+  /** Saved to an account; false: managed from the browsers holding its creator cookie only. */
+  savedToAccount: boolean;
 }
 
 export function summaryView(summary: PlanSummary, share: ShareLink | null): PlanSummaryView {
@@ -148,5 +160,6 @@ export function summaryView(summary: PlanSummary, share: ShareLink | null): Plan
     createdAt: summary.createdAt.toISOString(),
     participantCount: summary.participantCount,
     shareUrl: share?.url ?? null,
+    savedToAccount: summary.creatorSub !== null,
   };
 }

@@ -123,10 +123,12 @@ export function initialForm(now: Date, name: string, t: Translate): CreateForm {
 
 export type BuildResult = { ok: true; input: CreatePlanInput } | { ok: false; error: MessageKey; n?: number };
 
-/** The API body of the form, or the first thing to fix. */
-export function buildCreateInput(form: CreateForm, now: Date): BuildResult {
+/** The API body of the form, or the first thing to fix. `nameRequired`: signed out, the creator's name is a must. */
+export function buildCreateInput(form: CreateForm, now: Date, nameRequired = false): BuildResult {
   const title = form.title.trim();
   if (!title) return { ok: false, error: 'form.error.title' };
+  const name = form.name.trim();
+  if (nameRequired && !name) return { ok: false, error: 'form.error.name' };
   const options: CreatePlanInput['options'] = [];
   for (const [index, row] of form.times.entries()) {
     if (!row.date && !row.time) continue;
@@ -155,7 +157,6 @@ export function buildCreateInput(form: CreateForm, now: Date): BuildResult {
   if (!deadline) return { ok: false, error: form.deadline === 'custom' ? 'form.error.deadlineIncomplete' : 'form.error.deadline' };
   if (deadline.getTime() <= now.getTime() || deadline.getTime() > now.getTime() + MAX_DEADLINE_MS) return { ok: false, error: 'form.error.deadline' };
   const area = form.area.trim();
-  const name = form.name.trim();
   return {
     ok: true,
     input: {
@@ -176,13 +177,15 @@ const digits = (value: string, max: number): string => value.replace(/\D/g, '').
 interface PlanFormProps {
   /** The account's name, pre-filled as the creator's name in the plan. */
   defaultName: string;
+  /** Signed out: the creator's name must be given (it is how the group knows who made the plan). */
+  nameRequired?: boolean;
   /** The clock (tests pass a fixed one). */
   now?: () => Date;
   /** After the plan is made (the page goes to its share screen). */
   onCreated(planId: string): void;
 }
 
-export function PlanForm({ defaultName, now = () => new Date(), onCreated }: PlanFormProps): ReactNode {
+export function PlanForm({ defaultName, nameRequired = false, now = () => new Date(), onCreated }: PlanFormProps): ReactNode {
   const { t, locale } = useI18n();
   const ids = useId();
   const [form, setForm] = useState<CreateForm>(() => initialForm(now(), defaultName, t));
@@ -240,7 +243,7 @@ export function PlanForm({ defaultName, now = () => new Date(), onCreated }: Pla
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
     if (busy) return;
-    const built = buildCreateInput(form, now());
+    const built = buildCreateInput(form, now(), nameRequired);
     if (!built.ok) {
       setError(t(built.error, { n: built.n ?? 0 }));
       return;
@@ -463,9 +466,18 @@ export function PlanForm({ defaultName, now = () => new Date(), onCreated }: Pla
       </div>
       <label className="field">
         {t('form.name')}
-        <input className="in" value={form.name} maxLength={40} autoComplete="nickname" aria-describedby={`${ids}-name`} onChange={(e) => update({ name: e.target.value })} data-id="form-name" />
+        <input
+          className="in"
+          value={form.name}
+          maxLength={40}
+          autoComplete="nickname"
+          required={nameRequired}
+          aria-describedby={`${ids}-name`}
+          onChange={(e) => update({ name: e.target.value })}
+          data-id="form-name"
+        />
         <span id={`${ids}-name`} className="hint">
-          {t('form.nameHint')}
+          {nameRequired ? t('form.nameHintRequired') : t('form.nameHint')}
         </span>
       </label>
 

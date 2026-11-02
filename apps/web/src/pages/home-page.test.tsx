@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SessionState } from '../api/session-api';
 import { App, isPlanLink, routePath } from '../app';
 import { I18nProvider, translator } from '../i18n/i18n';
-import { HomePage, createPlanHref, loginNotice } from './home-page';
+import { HomePage, homeNotice } from './home-page';
 
 afterEach(() => {
   cleanup();
@@ -34,15 +34,14 @@ describe('home page', () => {
     expect([...document.querySelectorAll('[data-id^=step-]')].map((step) => step.textContent)).toEqual(['1Lên kèo', '2Gửi link', '3Vote', '4Chốt!']);
   });
 
-  it('sends a guest through sign-in to making a plan, and a signed-in person straight there', () => {
+  it('sends everyone straight to making a plan, no sign-in needed, and to the plans they manage', () => {
     showHome(SIGNED_OUT);
-    expect(screen.getByRole('link', { name: 'Lên kèo' }).getAttribute('href')).toBe('/auth/login?return=%2Fnew&lang=vi');
-    expect(document.querySelector('[data-id=home-my-plans]')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Lên kèo' }).getAttribute('href')).toBe('/new');
+    expect(document.querySelector('[data-id=home-my-plans]')?.getAttribute('href')).toBe('/plans');
     cleanup();
     showHome(SIGNED_IN);
     expect(screen.getByRole('link', { name: 'Lên kèo' }).getAttribute('href')).toBe('/new');
     expect(document.querySelector('[data-id=home-my-plans]')?.getAttribute('href')).toBe('/plans');
-    expect(createPlanHref({ status: 'loading' }, 'en')).toBe('/auth/login?return=%2Fnew&lang=en');
   });
 
   it('shows the English value line', () => {
@@ -53,9 +52,10 @@ describe('home page', () => {
 
   it('says what happened on the way back from sign-in', () => {
     const t = translator('vi');
-    expect(loginNotice('?login=fail', t)).toBe('Đăng nhập chưa thành công. Thử lại nhé.');
-    expect(loginNotice('?login=busy', t)).toContain('quá nhiều');
-    expect(loginNotice('?login=other', t)).toBeNull();
+    expect(homeNotice('?login=fail', t)).toBe('Đăng nhập chưa thành công. Thử lại nhé.');
+    expect(homeNotice('?login=busy', t)).toContain('quá nhiều');
+    expect(homeNotice('?login=other', t)).toBeNull();
+    expect(homeNotice('?manage=invalid', t)).toBe(t('manage.invalid'));
     window.history.replaceState(null, '', '/?login=unavailable');
     showHome(SIGNED_OUT);
     expect(document.querySelector('[data-id=login-notice]')?.textContent).toBe(t('login.unavailable'));
@@ -72,13 +72,19 @@ describe('routes', () => {
   });
 
   it.each([
-    ['/new', 'sign-in-card'],
-    ['/plans', 'sign-in-card'],
+    ['/new', 'plan-form'],
+    ['/plans', 'state-empty'],
     ['/plans/0b6f2a52-9a7e-4c51-8a35-2d7d1f0c9a11', 'sign-in-card'],
     ['/k/abc123', 'state-loading'],
     ['/nope', 'not-found'],
   ])('shows %s as %s', async (path, dataId) => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ signedIn: false, signInAvailable: true }));
+    // Signed out; a plan this browser does not manage answers 401, the list of its plans is empty.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === '/api/plans') return Response.json({ plans: [] });
+      if (url.startsWith('/api/plans/')) return Response.json({ error: 'sign-in-required' }, { status: 401 });
+      return Response.json({ signedIn: false, signInAvailable: true });
+    });
     render(
       <I18nProvider>
         <App pathname={path} />

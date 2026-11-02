@@ -66,7 +66,10 @@ async function storyImage(page: Page, testInfo: TestInfo, name: string): Promise
   expect(pngSize(await readFile(file))).toEqual({ width: 1080, height: 1920 });
 }
 
-test('a creator makes a plan, a guest votes without an account, the creator locks it, the guest sees the ticket', async ({ page, browser, baseURL }, testInfo) => {
+// The manage link is copied with the page's copy button and read back from the clipboard.
+test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+test('a signed-in creator makes a plan, a guest votes without an account, the creator locks it, the guest sees the ticket', async ({ page, browser, baseURL }, testInfo) => {
   const creatorErrors = consoleErrors(page);
   await page.setViewportSize({ width: 375, height: 900 });
 
@@ -75,7 +78,9 @@ test('a creator makes a plan, a guest votes without an account, the creator lock
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hết cảnh “để mai tính”.');
   await shoot(page, testInfo, '01-home');
 
-  // Sign in through the fake IdP on the way to making a plan.
+  // Sign in through the fake IdP from the header, back home; the form then has the account's name.
+  await page.click('[data-id=public-sign-in]');
+  await page.waitForURL((url) => url.pathname === '/' && !url.search.includes('login='));
   await page.click('[data-id=create-plan]');
   await page.waitForURL('**/new');
   await expect(page.locator('[data-id=form-name]')).toHaveValue('Người Thử E2E');
@@ -123,6 +128,8 @@ test('a creator makes a plan, a guest votes without an account, the creator lock
 
   // The share screen: the link, the share button, the preview.
   await expect(page.locator('[data-id=share-url]')).toContainText('/k/');
+  // Made signed in: the plan is the account's already, no card to keep it.
+  await expect(page.locator('[data-id=save-card]')).toHaveCount(0);
   const planPath = await page.locator('[data-id=share-open]').getAttribute('href');
   if (!planPath) throw new Error('no plan link');
   await shoot(page, testInfo, '03-share');
@@ -188,8 +195,7 @@ test('a creator makes a plan, a guest votes without an account, the creator lock
 });
 
 test('the story image of another template (a party, dark) is a 1080 × 1920 PNG too', async ({ page, baseURL }, testInfo) => {
-  await page.goto('/');
-  await page.click('[data-id=create-plan]');
+  await page.goto('/auth/login?return=/new');
   await page.waitForURL('**/new');
   const hour = 60 * 60 * 1000;
   const headers = { origin: baseURL ?? '' };
@@ -214,4 +220,130 @@ test('the story image of another template (a party, dark) is a 1080 × 1920 PNG 
   await page.goto(new URL(share.url).pathname);
   await expect(page.locator('[data-id=ticket]')).toBeVisible();
   await storyImage(page, testInfo, '07-story-party');
+});
+
+/** Fills the create form with a plan of two places; the name only when given. */
+async function fillPlan(page: Page, title: string, name: string | null): Promise<void> {
+  await page.fill('[data-id=form-title]', title);
+  await page.fill('[data-id=place-0]', 'Quán A');
+  await page.click('[data-id=add-place]');
+  await page.fill('[data-id=place-1]', 'Quán B');
+  if (name !== null) await page.fill('[data-id=form-name]', name);
+}
+
+test('a creator signed out makes a plan, keeps the manage link, a guest votes, the creator locks it, the guest sees the ticket', async ({ page, browser, baseURL }, testInfo) => {
+  const creatorErrors = consoleErrors(page);
+  await page.setViewportSize({ width: 375, height: 900 });
+  const newContext = (): ReturnType<typeof browser.newContext> =>
+    browser.newContext({ baseURL, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh', viewport: { width: 375, height: 900 } });
+
+  // "Lên kèo" goes straight to the form, no sign-in; the header still offers it.
+  await page.goto('/');
+  await expect(page.locator('[data-id=public-sign-in]')).toHaveText('Đăng nhập');
+  await page.click('[data-id=create-plan]');
+  await page.waitForURL('**/new');
+  await expect(page.locator('[data-id=form-name]')).toHaveValue('');
+  await fillPlan(page, 'Ăn tối thứ Sáu', null);
+  // Signed out, the name is a must.
+  await page.click('[data-id=form-submit]');
+  await expect(page.locator('[data-id=form-error]')).toContainText('nhập tên của bạn trong kèo');
+  await page.fill('[data-id=form-name]', 'Chủ Kèo');
+  await page.click('[data-id=form-submit]');
+  await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
+
+  // The share screen, with the card to keep managing the plan.
+  const card = page.locator('[data-id=save-card]');
+  await expect(card).toContainText('Giữ quyền quản lý kèo');
+  await expect(card.locator('[data-id=manage-warn]')).toHaveText('Ai có link này là quản lý được kèo, đừng gửi vào nhóm nhé.');
+  await expect(card.locator('[data-id=save-account]')).toHaveText(/Lưu kèo vào tài khoản hoandat\.com \(miễn phí\)/);
+  await shoot(page, testInfo, '11-share-signed-out');
+  await card.locator('[data-id=manage-copy]').click();
+  await expect(card.locator('[data-id=manage-copy]')).toHaveText(/Đã chép link quản lý/);
+  const manageUrl = await page.evaluate(() => navigator.clipboard.readText());
+  expect(manageUrl).toMatch(/\/m\/[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/);
+  const planPath = await page.locator('[data-id=share-open]').getAttribute('href');
+  if (!planPath) throw new Error('no plan link');
+
+  // A guest votes in another browser.
+  const guestContext = await newContext();
+  const guest = await guestContext.newPage();
+  await guest.goto(planPath);
+  await expect(guest.locator('[data-id=plan-head]')).toContainText('Chủ Kèo mời bạn tham gia kèo');
+  await guest.fill('[data-id=guest-name]', 'Linh');
+  await guest.locator('[data-id=vote-board] [data-id^=option-]').first().click();
+  await guest.locator('[data-id=vote-board] [data-id^=option-]', { hasText: 'Quán B' }).click();
+  await guest.click('[data-id=rsvp-going]');
+  await guest.click('[data-id=vote-submit]');
+  await expect(guest.locator('[data-id=vote-sent]')).toBeVisible();
+  // The guest has no say over the plan.
+  await expect(guest.locator('[data-id=lock-panel]')).toHaveCount(0);
+
+  // The manage link on a new device: creator rights there, and the token gone from the address.
+  const phoneContext = await newContext();
+  const phone = await phoneContext.newPage();
+  await phone.goto(new URL(manageUrl).pathname);
+  await phone.waitForURL(`**${planPath}`);
+  expect(phone.url()).not.toContain(new URL(manageUrl).pathname.split('.')[1] ?? 'missing');
+  await expect(phone.locator('[data-id=lock-panel]')).toContainText('1 người đã vote');
+  await phoneContext.close();
+
+  // The creator locks it in from the browser that made it.
+  await page.goto(planPath);
+  await page.click('[data-id=lock-submit]');
+  await expect(page.locator('[data-id=ticket]')).toContainText('Quán B');
+  await expect(page.locator('[data-id=save-card-locked]')).toContainText('Chốt xong rồi!');
+  await page.waitForTimeout(700);
+  await shoot(page, testInfo, '12-locked-signed-out');
+  // Offered once: not again on the next visit.
+  await page.reload();
+  await expect(page.locator('[data-id=ticket]')).toBeVisible();
+  await expect(page.locator('[data-id=save-card-locked]')).toHaveCount(0);
+
+  await guest.click('[data-id=plan-refresh]');
+  await expect(guest.locator('[data-id=ticket]')).toBeVisible();
+  await expect(guest.locator('[data-id=ticket-going] li')).toHaveText([/Chủ Kèo$/, /Linh$/]);
+
+  // A wrong manage link lands home with a notice.
+  await guest.goto(`/m/${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}.${'x'.repeat(43)}`);
+  await expect(guest.locator('[data-id=login-notice]')).toContainText('Link quản lý này không dùng được nữa');
+
+  expect(creatorErrors).toEqual([]);
+  await guestContext.close();
+});
+
+test('a creator signed out saves the plan to an account, and finds it in “Kèo của tôi” on another device', async ({ page, browser, baseURL }) => {
+  const errors = consoleErrors(page);
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.goto('/new');
+  await fillPlan(page, 'Họp nhóm cuối tuần', 'Trưởng nhóm');
+  await page.click('[data-id=form-submit]');
+  await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
+  const sharePage = new URL(page.url()).pathname;
+
+  // Signed out, "Kèo của tôi" lists it as kept in this browser only.
+  await page.goto('/plans');
+  await expect(page.locator('[data-id=plan-list]')).toContainText('Họp nhóm cuối tuần');
+  await expect(page.locator('[data-id=plan-browser-only]')).toHaveText('Chỉ trên trình duyệt này');
+  await expect(page.locator('[data-id=list-sign-in-hint]')).toBeVisible();
+
+  // Save it: through the fake IdP's sign-up and back, where the plan is saved and the address cleaned.
+  await page.goto(sharePage);
+  await page.click('[data-id=save-account]');
+  await page.waitForURL((url) => url.pathname === sharePage && url.search === '');
+  await expect(page.locator('[data-id=share-panel]')).toBeVisible();
+  await expect(page.locator('[data-id=save-card]')).toHaveCount(0);
+  await expect(page.locator('[data-id=claim-error]')).toHaveCount(0);
+
+  // Another device, signed in to the same account: no cookie of the plan, yet it is listed and opens.
+  const laptopContext = await browser.newContext({ baseURL, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' });
+  const laptop = await laptopContext.newPage();
+  await laptop.goto('/auth/login?return=/plans');
+  await laptop.waitForURL('**/plans');
+  const item = laptop.locator('[data-id^=plan-item-]', { hasText: 'Họp nhóm cuối tuần' });
+  await expect(item).toBeVisible();
+  await expect(item.locator('[data-id=plan-browser-only]')).toHaveCount(0);
+  await laptop.goto(sharePage);
+  await expect(laptop.locator('[data-id=share-panel]')).toBeVisible();
+  await laptopContext.close();
+  expect(errors).toEqual([]);
 });

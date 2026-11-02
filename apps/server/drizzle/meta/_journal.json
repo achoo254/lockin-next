@@ -22,6 +22,13 @@
       "when": 1793609508933,
       "tag": "0002_share-link-group-size-activities-map-url",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793612603453,
+      "tag": "0003_guest-creators",
+      "breakpoints": true
     }
   ]
 }

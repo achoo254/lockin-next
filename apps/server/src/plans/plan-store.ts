@@ -3,14 +3,18 @@
  * runs in one transaction holding the plan row: creator actions take it FOR UPDATE, guest actions FOR SHARE, so a
  * vote never lands after a lock and two locks cannot both win. Every change is logged in plan_events with
  * participant ids only, never names.
+ *
+ * A plan's creator is its account (`creator_sub`) or whoever holds its creator token (the creator cookie, or the
+ * private manage link that sets it): either one may run the creator actions.
  */
 import { randomUUID } from 'node:crypto';
-import { and, asc, count, desc, eq, inArray, lte, notInArray } from 'drizzle-orm';
+import { type SQL, and, asc, count, desc, eq, inArray, lte, notInArray, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { type EventActor, type OptionKind, type PlanStatus, type Rsvp, participants, planEvents, planOptions, plans, votes } from '../db/schema';
 import { HttpError } from '../http-error';
 import { type CreatePlanInput, type OptionInput, type UpdatePlanInput, assertDeadline } from './plan-input';
 import { type PlanAction, assertCanDo, deleteCutoff, effectiveStatus, isPastDeletion, readOnlyCutoff } from './plan-rules';
+import { manageSealContext } from './share-link';
 import type { ShareTokenBox } from './share-token-box';
 import { hashToken, newToken } from './tokens';
 
@@ -18,11 +22,30 @@ export type PlanRow = typeof plans.$inferSelect;
 export type ParticipantRow = typeof participants.$inferSelect;
 export type OptionRow = typeof planOptions.$inferSelect;
 
-/** Who is asking: the signed-in account (if any) and the guest token from this plan's cookie (if any). */
-export interface Requester {
+/** Who may be the creator: the signed-in account (if any) and the creator token from this plan's cookie (if any). */
+export interface CreatorKey {
   sub: string | null;
+  creatorToken?: string | null;
+}
+
+/** Who is asking: a CreatorKey, and the guest token from this plan's guest cookie (if any). */
+export interface Requester extends CreatorKey {
   guestToken: string | null;
 }
+
+/** Whether the key opens the creator's side of the plan: its owning account, or its creator token. */
+export function isPlanCreator(plan: Pick<PlanRow, 'creatorSub' | 'creatorTokenHash'>, key: CreatorKey): boolean {
+  if (key.sub !== null && key.sub === plan.creatorSub) return true;
+  return typeof key.creatorToken === 'string' && plan.creatorTokenHash !== null && hashToken(key.creatorToken) === plan.creatorTokenHash;
+}
+
+/** Refusing someone who is not the creator: signed out, they may still sign in (401); signed in, it is not theirs (403). */
+function notCreator(key: CreatorKey): HttpError {
+  return key.sub === null ? new HttpError(401, 'sign-in-required') : new HttpError(403, 'not-creator');
+}
+
+/** How the creator made the plan, in `plan_created` (pnpm stats): signed in, or signed out. */
+export type CreatorKind = 'account' | 'guest';
 
 const LIVE_STATUSES: PlanStatus[] = ['open', 'locked'];
 const notFound = (): HttpError => new HttpError(404, 'not-found');
@@ -55,16 +78,19 @@ function optionRows(planId: string, options: OptionInput[]): Array<typeof planOp
 
 /**
  * Makes a plan and its options; the creator joins it at once when a name is given, as going (a plan they make is one
- * they go to; they can still change it). Returns the share token, stored
- * as its hash (lookups) and sealed with `box` (shown to the creator again).
+ * they go to; they can still change it). `creatorSub` null: made signed out, owned by the creator token alone.
+ * Returns the share token and the creator token, each stored as its hash (lookups) and sealed with `box` (shown to
+ * the creator again).
  */
 export async function createPlan(
   db: Db,
-  args: { creatorSub: string; input: CreatePlanInput; sourcePlanId: string | null; box: ShareTokenBox; now: Date },
-): Promise<{ plan: PlanRow; shareToken: string }> {
+  args: { creatorSub: string | null; input: CreatePlanInput; sourcePlanId: string | null; box: ShareTokenBox; now: Date },
+): Promise<{ plan: PlanRow; shareToken: string; creatorToken: string }> {
   const { creatorSub, input, sourcePlanId, box, now } = args;
   assertDeadline(input.voteDeadline, now);
   const shareToken = newToken();
+  const creatorToken = newToken();
+  const creatorKind: CreatorKind = creatorSub === null ? 'guest' : 'account';
   // The id is made here: the sealed token is bound to it.
   const id = randomUUID();
   const plan = await db.transaction(async (tx) => {
@@ -81,24 +107,26 @@ export async function createPlan(
         voteDeadline: input.voteDeadline,
         shareTokenHash: hashToken(shareToken),
         shareTokenEnc: box.seal(shareToken, id),
+        creatorTokenHash: hashToken(creatorToken),
+        manageTokenEnc: box.seal(creatorToken, manageSealContext(id)),
         createdAt: now,
         updatedAt: now,
       })
       .returning();
     if (!row) throw new Error('plan insert returned no row');
     await tx.insert(planOptions).values(optionRows(row.id, input.options));
-    const events: EventInput[] = [{ planId: row.id, actor: 'creator', type: 'plan_created', sourcePlanId }];
+    const events: EventInput[] = [{ planId: row.id, actor: 'creator', type: 'plan_created', sourcePlanId, payload: { creatorKind } }];
     if (input.creatorDisplayName) {
       const [me] = await tx
         .insert(participants)
-        .values({ planId: row.id, displayName: input.creatorDisplayName, creatorSub, rsvp: 'going', joinedAt: now })
+        .values({ planId: row.id, displayName: input.creatorDisplayName, isCreator: true, creatorSub, rsvp: 'going', joinedAt: now })
         .returning({ id: participants.id });
       events.push({ planId: row.id, actor: 'creator', type: 'joined', participantId: me?.id ?? null });
     }
     await logEvents(tx, now, events);
     return row;
   });
-  return { plan, shareToken };
+  return { plan, shareToken, creatorToken };
 }
 
 /**
@@ -150,13 +178,22 @@ export async function findPlanByShareToken(db: Db, shareToken: string, now: Date
   return plan ? settle(db, plan, now) : null;
 }
 
-/** A plan of this creator: 404 when missing, 403 `not-creator` when it is someone else's. */
-export async function findCreatorPlan(db: Db, planId: string, creatorSub: string, now: Date): Promise<PlanRow> {
+/** A plan of this creator: 404 when missing, 401/403 when the key does not open it (notCreator). */
+export async function findCreatorPlan(db: Db, planId: string, key: CreatorKey, now: Date): Promise<PlanRow> {
   const [row] = await db.select().from(plans).where(eq(plans.id, planId));
   const plan = row ? await settle(db, row, now) : null;
   if (!plan) throw notFound();
-  if (plan.creatorSub !== creatorSub) throw new HttpError(403, 'not-creator');
+  if (!isPlanCreator(plan, key)) throw notCreator(key);
   return plan;
+}
+
+/** The plan a manage link names, when its creator token is the plan's (retention applied); null otherwise. */
+export async function findPlanByCreatorToken(db: Db, planId: string, creatorToken: string, now: Date): Promise<PlanRow | null> {
+  const [row] = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.id, planId), eq(plans.creatorTokenHash, hashToken(creatorToken))));
+  return row ? settle(db, row, now) : null;
 }
 
 export interface PlanSummary {
@@ -169,11 +206,21 @@ export interface PlanSummary {
   participantCount: number;
   /** The sealed share token (open it with the ShareTokenBox), null for a link made before it was kept. */
   shareTokenEnc: string | null;
+  /** The account that owns the plan, null while it lives in a browser only. */
+  creatorSub: string | null;
 }
 
-/** The creator's plans, newest first (retention applied first). */
-export async function listCreatorPlans(db: Db, creatorSub: string, now: Date): Promise<PlanSummary[]> {
-  await sweepPlans(db, now, creatorSub);
+/**
+ * The plans a creator can manage, newest first (retention applied first): the account's own, and those whose creator
+ * cookie this browser holds (each cookie checked against its plan's creator token).
+ */
+export async function listCreatorPlans(db: Db, owner: { sub: string | null; creatorTokens: Array<{ planId: string; token: string }> }, now: Date): Promise<PlanSummary[]> {
+  const conditions: Array<SQL | undefined> = owner.creatorTokens.map(({ planId, token }) => and(eq(plans.id, planId), eq(plans.creatorTokenHash, hashToken(token))));
+  if (owner.sub !== null) conditions.push(eq(plans.creatorSub, owner.sub));
+  // No condition would select every plan: nobody to list for.
+  const mine = conditions.length > 0 ? or(...conditions) : undefined;
+  if (!mine) return [];
+  await sweepPlans(db, now, mine);
   const counts = db
     .select({ planId: participants.planId, n: count().as('n') })
     .from(participants)
@@ -189,21 +236,21 @@ export async function listCreatorPlans(db: Db, creatorSub: string, now: Date): P
       createdAt: plans.createdAt,
       participantCount: counts.n,
       shareTokenEnc: plans.shareTokenEnc,
+      creatorSub: plans.creatorSub,
     })
     .from(plans)
     .leftJoin(counts, eq(counts.planId, plans.id))
-    .where(eq(plans.creatorSub, creatorSub))
+    .where(mine)
     .orderBy(desc(plans.createdAt))
     .limit(200);
   return rows.map((row) => ({ ...row, participantCount: Number(row.participantCount ?? 0) }));
 }
 
 /**
- * Retention for every plan (or one creator's): expires open and locked plans READ_ONLY_AFTER_DAYS past their
+ * Retention for every plan (or those `mine` selects): expires open and locked plans READ_ONLY_AFTER_DAYS past their
  * deadline and deletes plans DELETE_AFTER_DAYS past it, with their options, participants, votes and log.
  */
-export async function sweepPlans(db: Db, now: Date, creatorSub?: string): Promise<{ expired: number; deleted: number }> {
-  const mine = creatorSub === undefined ? undefined : eq(plans.creatorSub, creatorSub);
+export async function sweepPlans(db: Db, now: Date, mine?: SQL): Promise<{ expired: number; deleted: number }> {
   return db.transaction(async (tx) => {
     const deleted = await tx
       .delete(plans)
@@ -227,7 +274,7 @@ export async function sweepPlans(db: Db, now: Date, creatorSub?: string): Promis
 async function withCreatorPlan<T>(
   db: Db,
   planId: string,
-  creatorSub: string,
+  key: CreatorKey,
   action: PlanAction,
   now: Date,
   fn: (tx: Db, plan: PlanRow) => Promise<T>,
@@ -235,7 +282,7 @@ async function withCreatorPlan<T>(
   return db.transaction(async (tx) => {
     const [plan] = await tx.select().from(plans).where(eq(plans.id, planId)).for('update');
     if (!plan || isPastDeletion(plan, now)) throw notFound();
-    if (plan.creatorSub !== creatorSub) throw new HttpError(403, 'not-creator');
+    if (!isPlanCreator(plan, key)) throw notCreator(key);
     assertCanDo(action, plan, now);
     return fn(tx, plan);
   });
@@ -291,8 +338,8 @@ async function replaceOptions(tx: Db, plan: PlanRow, inputs: OptionInput[], now:
   await logEvents(tx, now, events);
 }
 
-export async function updatePlan(db: Db, planId: string, creatorSub: string, input: UpdatePlanInput, now: Date): Promise<void> {
-  await withCreatorPlan(db, planId, creatorSub, 'edit', now, async (tx, plan) => {
+export async function updatePlan(db: Db, planId: string, key: CreatorKey, input: UpdatePlanInput, now: Date): Promise<void> {
+  await withCreatorPlan(db, planId, key, 'edit', now, async (tx, plan) => {
     if (input.voteDeadline) assertDeadline(input.voteDeadline, now);
     const { options, ...fields } = input;
     const changed = Object.entries(fields)
@@ -319,11 +366,11 @@ export async function updatePlan(db: Db, planId: string, creatorSub: string, inp
 export async function lockPlan(
   db: Db,
   planId: string,
-  creatorSub: string,
+  key: CreatorKey,
   choice: { timeOptionId?: string; placeOptionId?: string },
   now: Date,
 ): Promise<void> {
-  await withCreatorPlan(db, planId, creatorSub, 'lock', now, async (tx, plan) => {
+  await withCreatorPlan(db, planId, key, 'lock', now, async (tx, plan) => {
     const options = await tx.select({ id: planOptions.id, kind: planOptions.kind }).from(planOptions).where(eq(planOptions.planId, plan.id));
     const chosen: string[] = [];
     for (const [kind, id] of [
@@ -344,17 +391,17 @@ export async function lockPlan(
 }
 
 /** Cancel (open or locked) or mark done (locked). */
-export async function finishPlan(db: Db, planId: string, creatorSub: string, outcome: 'cancelled' | 'done', now: Date): Promise<void> {
-  await withCreatorPlan(db, planId, creatorSub, outcome === 'done' ? 'done' : 'cancel', now, async (tx, plan) => {
+export async function finishPlan(db: Db, planId: string, key: CreatorKey, outcome: 'cancelled' | 'done', now: Date): Promise<void> {
+  await withCreatorPlan(db, planId, key, outcome === 'done' ? 'done' : 'cancel', now, async (tx, plan) => {
     await tx.update(plans).set({ status: outcome, updatedAt: now }).where(eq(plans.id, plan.id));
     await logEvents(tx, now, [{ planId: plan.id, actor: 'creator', type: outcome }]);
   });
 }
 
 /** A new share link; the old one stops working at once. Guests keep their identity (their cookie is per plan). */
-export async function rotateShareLink(db: Db, planId: string, creatorSub: string, box: ShareTokenBox, now: Date): Promise<string> {
+export async function rotateShareLink(db: Db, planId: string, key: CreatorKey, box: ShareTokenBox, now: Date): Promise<string> {
   const shareToken = newToken();
-  await withCreatorPlan(db, planId, creatorSub, 'rotateLink', now, async (tx, plan) => {
+  await withCreatorPlan(db, planId, key, 'rotateLink', now, async (tx, plan) => {
     await tx
       .update(plans)
       .set({ shareTokenHash: hashToken(shareToken), shareTokenEnc: box.seal(shareToken, plan.id), updatedAt: now })
@@ -362,6 +409,27 @@ export async function rotateShareLink(db: Db, planId: string, creatorSub: string
     await logEvents(tx, now, [{ planId: plan.id, actor: 'creator', type: 'link_rotated' }]);
   });
   return shareToken;
+}
+
+/**
+ * Saves a plan to the signed-in account `sub`, for whoever holds its creator token: the account then manages it from
+ * any browser (the token keeps working too). Idempotent for the account that owns it already; a plan owned by
+ * another account is never taken (409 `plan-owned`). Allowed whatever the plan's status, until it is deleted.
+ */
+export async function claimPlan(db: Db, planId: string, sub: string, creatorToken: string | null, now: Date): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [plan] = await tx.select().from(plans).where(eq(plans.id, planId)).for('update');
+    if (!plan || isPastDeletion(plan, now)) throw notFound();
+    if (plan.creatorSub === sub) return;
+    if (!isPlanCreator(plan, { sub: null, creatorToken })) throw new HttpError(403, 'not-creator');
+    if (plan.creatorSub !== null) throw new HttpError(409, 'plan-owned');
+    await tx.update(plans).set({ creatorSub: sub, updatedAt: now }).where(eq(plans.id, plan.id));
+    await tx
+      .update(participants)
+      .set({ creatorSub: sub })
+      .where(and(eq(participants.planId, plan.id), eq(participants.isCreator, true)));
+    await logEvents(tx, now, [{ planId: plan.id, actor: 'creator', type: 'plan_claimed' }]);
+  });
 }
 
 /** Runs a guest action in a transaction holding the plan of a share token FOR SHARE, after the status check. */
@@ -375,9 +443,7 @@ async function withLinkedPlan<T>(db: Db, shareToken: string, action: PlanAction,
 }
 
 function participantWhere(plan: PlanRow, requester: Requester): ReturnType<typeof and> | null {
-  if (requester.sub !== null && requester.sub === plan.creatorSub) {
-    return and(eq(participants.planId, plan.id), eq(participants.creatorSub, requester.sub));
-  }
+  if (isPlanCreator(plan, requester)) return and(eq(participants.planId, plan.id), eq(participants.isCreator, true));
   if (requester.guestToken === null) return null;
   return and(eq(participants.planId, plan.id), eq(participants.guestTokenHash, hashToken(requester.guestToken)));
 }
@@ -398,14 +464,15 @@ async function lockParticipant(tx: Db, plan: PlanRow, requester: Requester): Pro
 }
 
 /**
- * Joins the plan, or renames the requester when they already joined (same participant). The creator joins by
- * account; anyone else by the guest token the route put in their cookie. Logs `joined` once per participant.
+ * Joins the plan, or renames the requester when they already joined (same participant). The creator joins as the
+ * plan's creator (recognised by account or creator token); anyone else by the guest token the route put in their
+ * cookie. Logs `joined` once per participant.
  */
 export async function joinPlan(db: Db, shareToken: string, requester: Requester, displayName: string, now: Date): Promise<PlanRow> {
   return withLinkedPlan(db, shareToken, 'join', now, async (tx, plan) => {
-    const isCreator = requester.sub !== null && requester.sub === plan.creatorSub;
+    const isCreator = isPlanCreator(plan, requester);
     if (!isCreator && requester.guestToken === null) throw new Error('joinPlan needs a guest token');
-    const identity = isCreator ? { creatorSub: requester.sub } : { guestTokenHash: hashToken(requester.guestToken ?? '') };
+    const identity = isCreator ? { isCreator: true, creatorSub: plan.creatorSub } : { guestTokenHash: hashToken(requester.guestToken ?? '') };
     const [created] = await tx
       .insert(participants)
       .values({ planId: plan.id, displayName, joinedAt: now, ...identity })
@@ -451,7 +518,7 @@ export async function setVotes(db: Db, shareToken: string, requester: Requester,
         .where(and(eq(planEvents.participantId, participant.id), eq(planEvents.type, 'voted')))
         .limit(1);
       if (!already) {
-        const actor = participant.creatorSub === null ? 'participant' : 'creator';
+        const actor = participant.isCreator ? 'creator' : 'participant';
         await logEvents(tx, now, [{ planId: plan.id, actor, type: 'voted', participantId: participant.id }]);
       }
     }
@@ -464,7 +531,7 @@ export async function setRsvp(db: Db, shareToken: string, requester: Requester, 
     const participant = await lockParticipant(tx, plan, requester);
     if (participant.rsvp === rsvp) return plan;
     await tx.update(participants).set({ rsvp }).where(eq(participants.id, participant.id));
-    const actor = participant.creatorSub === null ? 'participant' : 'creator';
+    const actor = participant.isCreator ? 'creator' : 'participant';
     await logEvents(tx, now, [{ planId: plan.id, actor, type: 'rsvp', participantId: participant.id, payload: { rsvp } }]);
     return plan;
   });

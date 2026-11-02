@@ -1,13 +1,13 @@
 import type { CookieOptions, Response } from 'express';
 import { describe, expect, it } from 'vitest';
 import { type ServerConfig, loadConfig } from '../config';
-import { hashToken, isTokenShape, newToken, readAllGuestTokens, readGuestToken, setGuestToken } from './tokens';
+import { hashToken, isTokenShape, newToken, readAllCreatorTokens, readAllGuestTokens, readCreatorToken, readGuestToken, setCreatorToken, setGuestToken } from './tokens';
 
 const PLAN = '0b9f6a52-3c1d-4e2f-9a8b-7c6d5e4f3a21';
 const dev = loadConfig({ NODE_ENV: 'test' });
 const prod: ServerConfig = { ...dev, nodeEnv: 'production' };
 
-function captureCookie(config: ServerConfig): { name: string; value: string; options: CookieOptions } {
+function captureCookie(config: ServerConfig, set: typeof setGuestToken = setGuestToken): { name: string; value: string; options: CookieOptions } {
   let captured: { name: string; value: string; options: CookieOptions } | null = null;
   const res = {
     cookie(name: string, value: string, options: CookieOptions) {
@@ -16,7 +16,7 @@ function captureCookie(config: ServerConfig): { name: string; value: string; opt
     },
   };
   const now = new Date('2026-11-02T00:00:00Z');
-  setGuestToken(res as unknown as Response, config, PLAN, 'x'.repeat(43), new Date(now.getTime() + 1000), now);
+  set(res as unknown as Response, config, PLAN, 'x'.repeat(43), new Date(now.getTime() + 1000), now);
   if (!captured) throw new Error('no cookie set');
   return captured;
 }
@@ -54,5 +54,25 @@ describe('tokens', () => {
     ]);
     // The production prefix is not read in dev and the other way round.
     expect(readAllGuestTokens(req, prod)).toEqual([]);
+  });
+
+  it('keeps the creator token of a plan made signed out in a cookie of its own, read apart from the guest ones', () => {
+    const local = captureCookie(dev, setCreatorToken);
+    expect(local.name).toBe(`lockin_c_${PLAN.replaceAll('-', '')}`);
+    expect(local.options).toMatchObject({ httpOnly: true, sameSite: 'lax', path: '/', secure: false, maxAge: 1000 });
+    const production = captureCookie(prod, setCreatorToken);
+    expect(production.name).toBe(`__Host-lockin_c_${PLAN.replaceAll('-', '')}`);
+    expect(production.options).toMatchObject({ secure: true, path: '/' });
+
+    const creator = newToken();
+    const guest = newToken();
+    const req = { headers: { cookie: `lockin_c_${PLAN.replaceAll('-', '')}=${creator}; lockin_g_${PLAN.replaceAll('-', '')}=${guest}` } };
+    expect(readCreatorToken(req, dev, PLAN)).toBe(creator);
+    expect(readGuestToken(req, dev, PLAN)).toBe(guest);
+    expect(readAllCreatorTokens(req, dev)).toEqual([{ planId: PLAN, token: creator }]);
+    expect(readAllGuestTokens(req, dev)).toEqual([{ planId: PLAN, token: guest }]);
+    // At most 50 are read from one request.
+    const many = Array.from({ length: 60 }, (_, i) => `lockin_c_${i.toString(16).padStart(32, '0')}=${creator}`).join('; ');
+    expect(readAllCreatorTokens({ headers: { cookie: many } }, dev)).toHaveLength(50);
   });
 });

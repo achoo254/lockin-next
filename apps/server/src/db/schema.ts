@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * An account of the hoandat.com IdP that signed in here: its `sub`, and the name, email and picture its userinfo
@@ -63,15 +63,20 @@ export type EventActor = (typeof EVENT_ACTORS)[number];
 const sqlList = (values: readonly string[]): ReturnType<typeof sql.raw> => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /**
- * A plan made by a signed-in account (`creator_sub`, the IdP subject). The share link carries a random token: looked
- * up by its sha256, and kept AES-256-GCM encrypted (`share_token_enc`, plans/share-token-box.ts) so the creator can
- * see the link again; null for a plan whose link was made before that. All times are UTC. `locked_option_ids`: the time and/or place the creator locked in.
+ * A plan. Its creator is an account (`creator_sub`, the IdP subject; null for a plan made signed out and not saved to
+ * an account yet) and/or whoever holds the creator token (`creator_token_hash`: the sha256 of the token in the
+ * creator's browser cookie and in the private manage link; null for plans made before that). The share link and the
+ * manage link carry random tokens: looked up by their sha256, and kept AES-256-GCM encrypted (`share_token_enc`,
+ * `manage_token_enc`, plans/share-token-box.ts) so the creator can see them again; null when made before that.
+ * All times are UTC. `locked_option_ids`: the time and/or place the creator locked in.
  */
 export const plans = pgTable(
   'plans',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    creatorSub: text('creator_sub').notNull(),
+    creatorSub: text('creator_sub'),
+    creatorTokenHash: text('creator_token_hash').unique(),
+    manageTokenEnc: text('manage_token_enc'),
     title: text('title').notNull(),
     activity: text('activity').$type<Activity>().notNull(),
     area: text('area'),
@@ -123,7 +128,9 @@ export const planOptions = pgTable(
 
 /**
  * Someone in a plan: a guest (recognised by the sha256 of the token in their browser cookie) or the plan's creator
- * (by account). Renaming keeps the row; another browser is another participant.
+ * (`is_creator`, one per plan; recognised as the plan's creator is, by account or creator token). `creator_sub` on the
+ * creator's row is the account that owns the plan, when there is one. Renaming keeps the row; another browser is
+ * another participant.
  */
 export const participants = pgTable(
   'participants',
@@ -135,13 +142,16 @@ export const participants = pgTable(
     displayName: text('display_name').notNull(),
     guestTokenHash: text('guest_token_hash').unique(),
     creatorSub: text('creator_sub'),
+    isCreator: boolean('is_creator').notNull().default(false),
     rsvp: text('rsvp').$type<Rsvp>(),
     joinedAt: timestamp('joined_at', { withTimezone: true }).notNull(),
   },
   (table) => [
     index('participants_plan_id_idx').on(table.planId, table.joinedAt),
     unique('participants_plan_creator_unique').on(table.planId, table.creatorSub),
-    check('participants_identity_check', sql`(${table.guestTokenHash} is null) <> (${table.creatorSub} is null)`),
+    uniqueIndex('participants_one_creator_idx').on(table.planId).where(sql`${table.isCreator}`),
+    check('participants_identity_check', sql`(${table.guestTokenHash} is null) = ${table.isCreator}`),
+    check('participants_creator_sub_check', sql`${table.creatorSub} is null or ${table.isCreator}`),
     check('participants_rsvp_check', sql`${table.rsvp} is null or ${table.rsvp} in (${sqlList(RSVPS)})`),
   ],
 );
@@ -166,7 +176,9 @@ export const votes = pgTable(
 
 /**
  * A plan's log and the source of the funnel numbers (`pnpm stats`). Holds participant ids, never names.
- * `source_plan_id` on `plan_created`: the creator's browser had joined that other plan as a guest.
+ * `source_plan_id` on `plan_created`: the creator's browser had joined that other plan as a guest; its payload
+ * `creatorKind` says whether it was made signed in (`account`) or signed out (`guest`). `plan_claimed`: a plan made
+ * signed out was saved to an account.
  */
 export const planEvents = pgTable(
   'plan_events',

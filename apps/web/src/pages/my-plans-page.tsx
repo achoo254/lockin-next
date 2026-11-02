@@ -2,7 +2,6 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { type PlanSummary, listPlans, sharePath } from '../api/plans-api';
 import { type SessionState, signInHref } from '../api/session-api';
 import { useI18n } from '../i18n/i18n';
-import { SignInCard } from '../layout/sign-in-card';
 import { errorMessage } from '../plans/error-message';
 import { LoadingCard, StateCard } from '../plans/plan-parts';
 import { formatVnDateTime } from '../plans/vn-time';
@@ -11,12 +10,16 @@ import { NEW_PLAN_PATH } from './new-plan-page';
 
 export const MY_PLANS_PATH = '/plans';
 
-/** /plans: the creator's plans, newest first. */
+/**
+ * /plans: the plans this person manages, newest first: the account's (signed in) and those made in this browser
+ * (its creator cookies). Signed out, a note says how to see them on any device.
+ */
 export function MyPlansPage({ session }: { session: SessionState }): ReactNode {
   const { t, locale } = useI18n();
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const signedIn = session.status === 'ready' && session.signedIn;
+  const ready = session.status === 'ready';
+  const canSignIn = ready && !session.signedIn && session.signInAvailable;
 
   /** Loads once more, after a failure or a new link. */
   const load = useCallback(async (): Promise<void> => {
@@ -29,7 +32,7 @@ export function MyPlansPage({ session }: { session: SessionState }): ReactNode {
   }, []);
 
   useEffect(() => {
-    if (!signedIn) return;
+    if (!ready) return;
     let live = true;
     listPlans().then(
       (value) => live && setPlans(value),
@@ -38,10 +41,9 @@ export function MyPlansPage({ session }: { session: SessionState }): ReactNode {
     return () => {
       live = false;
     };
-  }, [signedIn]);
+  }, [ready]);
 
-  if (session.status === 'loading') return <LoadingCard />;
-  if (!signedIn) return <SignInCard href={signInHref(locale, MY_PLANS_PATH)} title={t('signIn.title')} description={t('signIn.lead')} headingLevel={1} />;
+  if (!ready) return <LoadingCard />;
 
   let body: ReactNode;
   if (error)
@@ -74,6 +76,13 @@ export function MyPlansPage({ session }: { session: SessionState }): ReactNode {
                 </h2>
                 <span className={plan.status === 'locked' || plan.status === 'done' ? 'pill pill-lock' : 'pill'}>{t(`plan.status.${plan.status}`)}</span>
               </div>
+              {!plan.savedToAccount && (
+                <p>
+                  <span className="pill pill-warn" data-id="plan-browser-only">
+                    {t('list.browserOnly')}
+                  </span>
+                </p>
+              )}
               <p className="muted">
                 {t('list.people', { n: plan.participantCount })} · {t('list.deadline', { when: formatVnDateTime(plan.voteDeadline, locale) })}
               </p>
@@ -103,6 +112,14 @@ export function MyPlansPage({ session }: { session: SessionState }): ReactNode {
           {t('list.new')}
         </a>
       </div>
+      {canSignIn && (
+        <p className="alert alert-info" data-id="list-sign-in-hint">
+          {t('list.signInHint')}{' '}
+          <a href={signInHref(locale, MY_PLANS_PATH)} data-id="list-sign-in">
+            {t('layout.signIn')}
+          </a>
+        </p>
+      )}
       {body}
     </div>
   );

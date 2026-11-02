@@ -1,8 +1,6 @@
 /** Small pieces shared by the plan screens: the plan's heading, option rows, people chips, state cards, nudge, invite. */
 import type { ReactNode } from 'react';
 import { type PlanOption, type PlanView, RSVPS, type Rsvp } from '../api/plans-api';
-import { signUpHref } from '../api/session-api';
-import { brand } from '../brand';
 import { useI18n } from '../i18n/i18n';
 import { Icon, type IconName } from '../ui/icon';
 import { mapHref, nudgeLine, optionText } from './plan-format';
@@ -176,14 +174,14 @@ export function LoadingCard(): ReactNode {
   );
 }
 
-/** The gentle "make your own plan" card for guests (straight to sign-up, back to making a plan). */
-export function InviteCard({ signedIn }: { signedIn: boolean }): ReactNode {
-  const { t, locale } = useI18n();
+/** The gentle "make your own plan" card for guests (straight to the form: no account needed). */
+export function InviteCard(): ReactNode {
+  const { t } = useI18n();
   return (
     <aside className="card invite" data-id="invite-card">
       <strong>{t('invite.title')}</strong>
-      <p className="muted">{t('invite.text', { domain: brand.primaryTenant.domain })}</p>
-      <a className="btn btn-primary btn-sm" href={signedIn ? '/new' : signUpHref(locale, '/new')} data-id="invite-cta">
+      <p className="muted">{t('invite.text')}</p>
+      <a className="btn btn-primary btn-sm" href="/new" data-id="invite-cta">
         {t('invite.cta')}
       </a>
     </aside>

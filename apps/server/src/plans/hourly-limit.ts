@@ -4,22 +4,38 @@ import { HttpError } from '../http-error';
 import { hashToken } from './tokens';
 
 type KeyOf = (req: Request, res: Response) => string;
+/** True for a request this counter leaves alone (another counter is in charge of it). */
+type SkipIf = (req: Request, res: Response) => boolean;
 
-/** In-memory hourly counters (one server process, see the plan's RAM budget); `handler` runs once over the limit. */
-function hourlyCounter(limit: number, key: KeyOf | undefined, handler: RequestHandler): RequestHandler {
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** In-memory counters over a window (one server process, see the plan's RAM budget); `handler` runs once over the limit. */
+function windowCounter(limit: number, windowMs: number, key: KeyOf | undefined, skip: SkipIf | undefined, handler: RequestHandler): RequestHandler {
   return rateLimit({
-    windowMs: 60 * 60 * 1000,
+    windowMs,
     limit,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     ...(key ? { keyGenerator: key } : {}),
+    ...(skip ? { skip } : {}),
     handler,
   });
 }
 
-/** At most `limit` requests per hour, per client IP unless `key` says otherwise. Over it the API answers 429 `rate-limited`. */
-export function hourlyLimit(limit: number, key?: KeyOf): RequestHandler {
-  return hourlyCounter(limit, key, (_req, _res, next) => next(new HttpError(429, 'rate-limited')));
+const refuse: RequestHandler = (_req, _res, next) => next(new HttpError(429, 'rate-limited'));
+
+/**
+ * At most `limit` requests per hour, per client IP unless `key` says otherwise; requests `skip` picks are not
+ * counted. Over it the API answers 429 `rate-limited`.
+ */
+export function hourlyLimit(limit: number, key?: KeyOf, skip?: SkipIf): RequestHandler {
+  return windowCounter(limit, HOUR_MS, key, skip, refuse);
+}
+
+/** Like hourlyLimit, over a day: a ceiling above the hourly one. */
+export function dailyLimit(limit: number, key?: KeyOf, skip?: SkipIf): RequestHandler {
+  return windowCounter(limit, DAY_MS, key, skip, refuse);
 }
 
 const OVER_QUOTA = 'lockinOverHourlyQuota';
@@ -29,7 +45,7 @@ const OVER_QUOTA = 'lockinOverHourlyQuota';
  * overHourlyQuota(res) is true, for work worth skipping then (not worth turning a reader away for).
  */
 export function hourlyQuota(limit: number, key?: KeyOf): RequestHandler {
-  return hourlyCounter(limit, key, (_req, res, next) => {
+  return windowCounter(limit, HOUR_MS, key, undefined, (_req, res, next) => {
     res.locals[OVER_QUOTA] = true;
     next();
   });
