@@ -43,6 +43,12 @@ export interface ServerConfig {
    * real client IP is the one nginx forwards (Cloudflare's real-IP restore is global on the host).
    */
   signInLimitPer15Min: number;
+  /** Plans a signed-in account can make per hour. */
+  planCreateLimitPerHour: number;
+  /** Joins (and renames) per hour per IP. */
+  joinLimitPerHour: number;
+  /** Vote and going/not submissions per hour per IP. */
+  voteLimitPerHour: number;
 }
 
 /** Validates env once at startup; throws naming the offending keys (never their values) so the process fails fast. */
@@ -84,5 +90,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
         }
       : null,
     signInLimitPer15Min: 100,
+    planCreateLimitPerHour: 20,
+    joinLimitPerHour: 30,
+    voteLimitPerHour: 120,
   };
 }

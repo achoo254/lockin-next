@@ -2,6 +2,8 @@
 import type { ReactNode } from 'react';
 import { APP_HOST } from '../brand';
 import { type Locale, format, useI18n } from '../i18n/i18n';
+// The server enforces these numbers; the privacy page prints the very same constants.
+import { DELETE_AFTER_DAYS, READ_ONLY_AFTER_DAYS } from '../../../server/src/plans/retention';
 
 interface Section {
   heading: string;
@@ -17,12 +19,6 @@ interface LegalDoc {
 
 export type LegalPageKind = 'privacy' | 'terms' | 'credits';
 
-/**
- * How long a plan lives, as published on the privacy page: it turns read-only this many days after its vote
- * deadline, and is deleted (with its guests and votes) this many days after it.
- */
-export const READ_ONLY_AFTER_DAYS = 30;
-export const DELETE_AFTER_DAYS = 90;
 
 const APP_ICON_LICENCE = 'AI-generated (OpenAI gpt-image-2) for the hoandat ecosystem; owned by hoandat, all rights reserved (not CC0).';
 

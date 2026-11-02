@@ -9,7 +9,8 @@
     "bundle": "tsx bundle.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:check": "drizzle-kit check"
+    "db:check": "drizzle-kit check",
+    "stats": "tsx --env-file-if-exists=.env src/stats/stats-cli.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

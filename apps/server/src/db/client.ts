@@ -30,6 +30,16 @@ export async function openPostgres(connectionString: string): Promise<DbHandle> 
   return { db, close: () => pool.end() };
 }
 
+/**
+ * Real Postgres for reports (`pnpm stats`): every transaction is read-only and no migration runs, so pointing it at
+ * production cannot change anything.
+ */
+export function openPostgresReadOnly(connectionString: string): DbHandle {
+  const pool = new pg.Pool({ connectionString, max: 1, options: '-c default_transaction_read_only=on' });
+  pool.on('error', (error) => console.error('postgres idle client error', error.message));
+  return { db: drizzleNodePg(pool, { schema }), close: () => pool.end() };
+}
+
 /** Embedded Postgres for dev (directory under `.data/`, gitignored) and tests (in memory when `dir` is omitted). */
 export async function openPglite(dir?: string): Promise<DbHandle> {
   // Loaded on demand: the production bundle runs on Postgres and ships without PGlite.

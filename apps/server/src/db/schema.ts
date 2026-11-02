@@ -1,4 +1,5 @@
-import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * An account of the hoandat.com IdP that signed in here: its `sub`, and the name, email and picture its userinfo
@@ -27,4 +28,142 @@ export const sessions = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
   (table) => [index('sessions_user_id_idx').on(table.userId)],
+);
+
+/** What a plan is for; the web app pre-fills the title from it. */
+export const ACTIVITIES = ['coffee', 'dinner', 'movie', 'karaoke', 'day_trip', 'other'] as const;
+export type Activity = (typeof ACTIVITIES)[number];
+
+/** `open` → `locked` → `done`; `cancelled` and `expired` end a plan (see plans/plan-rules.ts). */
+export const PLAN_STATUSES = ['open', 'locked', 'done', 'cancelled', 'expired'] as const;
+export type PlanStatus = (typeof PLAN_STATUSES)[number];
+
+export const OPTION_KINDS = ['time', 'place'] as const;
+export type OptionKind = (typeof OPTION_KINDS)[number];
+
+export const RSVPS = ['going', 'maybe', 'no'] as const;
+export type Rsvp = (typeof RSVPS)[number];
+
+/** Who did what in a plan's log; never a guest's name (the privacy page promises it). */
+export const EVENT_ACTORS = ['creator', 'participant', 'visitor', 'system'] as const;
+export type EventActor = (typeof EVENT_ACTORS)[number];
+
+const sqlList = (values: readonly string[]): ReturnType<typeof sql.raw> => sql.raw(values.map((v) => `'${v}'`).join(', '));
+
+/**
+ * A plan made by a signed-in account (`creator_sub`, the IdP subject). The share link carries a random token; only
+ * its sha256 is stored. All times are UTC. `locked_option_ids`: the time and/or place the creator locked in.
+ */
+export const plans = pgTable(
+  'plans',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    creatorSub: text('creator_sub').notNull(),
+    title: text('title').notNull(),
+    activity: text('activity').$type<Activity>().notNull(),
+    area: text('area'),
+    /** VND per person, the creator's estimate. */
+    budgetPerPerson: integer('budget_per_person'),
+    voteDeadline: timestamp('vote_deadline', { withTimezone: true }).notNull(),
+    status: text('status').$type<PlanStatus>().notNull().default('open'),
+    shareTokenHash: text('share_token_hash').notNull().unique(),
+    lockedOptionIds: uuid('locked_option_ids').array(),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('plans_creator_sub_idx').on(table.creatorSub, table.createdAt),
+    index('plans_vote_deadline_idx').on(table.voteDeadline),
+    check('plans_status_check', sql`${table.status} in (${sqlList(PLAN_STATUSES)})`),
+    check('plans_activity_check', sql`${table.activity} in (${sqlList(ACTIVITIES)})`),
+  ],
+);
+
+/** A time (`starts_at`, label optional) or a place (label: free text or a maps link) people vote for. */
+export const planOptions = pgTable(
+  'plan_options',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plans.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<OptionKind>().notNull(),
+    label: text('label').notNull().default(''),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    sortOrder: integer('sort_order').notNull(),
+  },
+  (table) => [
+    index('plan_options_plan_id_idx').on(table.planId),
+    check('plan_options_kind_check', sql`${table.kind} in (${sqlList(OPTION_KINDS)})`),
+    check('plan_options_time_check', sql`(${table.kind} = 'time') = (${table.startsAt} is not null)`),
+  ],
+);
+
+/**
+ * Someone in a plan: a guest (recognised by the sha256 of the token in their browser cookie) or the plan's creator
+ * (by account). Renaming keeps the row; another browser is another participant.
+ */
+export const participants = pgTable(
+  'participants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plans.id, { onDelete: 'cascade' }),
+    displayName: text('display_name').notNull(),
+    guestTokenHash: text('guest_token_hash').unique(),
+    creatorSub: text('creator_sub'),
+    rsvp: text('rsvp').$type<Rsvp>(),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('participants_plan_id_idx').on(table.planId, table.joinedAt),
+    unique('participants_plan_creator_unique').on(table.planId, table.creatorSub),
+    check('participants_identity_check', sql`(${table.guestTokenHash} is null) <> (${table.creatorSub} is null)`),
+    check('participants_rsvp_check', sql`${table.rsvp} is null or ${table.rsvp} in (${sqlList(RSVPS)})`),
+  ],
+);
+
+/** One approval of an option by a participant; the primary key makes a double submit harmless. */
+export const votes = pgTable(
+  'votes',
+  {
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plans.id, { onDelete: 'cascade' }),
+    participantId: uuid('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    optionId: uuid('option_id')
+      .notNull()
+      .references(() => planOptions.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.participantId, table.optionId] }), index('votes_option_id_idx').on(table.optionId)],
+);
+
+/**
+ * A plan's log and the source of the funnel numbers (`pnpm stats`). Holds participant ids, never names.
+ * `source_plan_id` on `plan_created`: the creator's browser had joined that other plan as a guest.
+ */
+export const planEvents = pgTable(
+  'plan_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plans.id, { onDelete: 'cascade' }),
+    actor: text('actor').$type<EventActor>().notNull(),
+    participantId: uuid('participant_id').references(() => participants.id, { onDelete: 'set null' }),
+    type: text('type').notNull(),
+    payload: jsonb('payload').$type<Record<string, string | number | boolean | string[]>>(),
+    sourcePlanId: uuid('source_plan_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('plan_events_plan_id_idx').on(table.planId, table.createdAt),
+    index('plan_events_type_idx').on(table.type, table.createdAt),
+    check('plan_events_actor_check', sql`${table.actor} in (${sqlList(EVENT_ACTORS)})`),
+  ],
 );

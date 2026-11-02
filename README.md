@@ -7,9 +7,9 @@ Nhóm bạn chốt kèo đi chơi bằng một link: người tạo (đăng nh�
 chỗ, gửi một link vào nhóm Zalo hay Messenger; bạn bè mở link, nhập tên và vote, không cần tài khoản; người tạo chốt
 giờ và chỗ, cả nhóm thấy kết quả và ai đi. Miễn phí, không gói, không quảng cáo.
 
-**Trạng thái:** khung repo (đăng nhập BFF, giao diện, trang pháp lý, hạ tầng). Tạo kèo (`/new`) và trang kèo
-(`/k/<token>`) mới là trang "sắp có"; dữ liệu kèo, luật vote/chốt và thẻ xem trước link đến ở các bước sau của plan
-Lockin trong workspace `hoandat-app`.
+**Trạng thái:** máy chủ đã có dữ liệu kèo, luật vote/chốt, API người tạo và API trang kèo cho khách, nhật ký phễu
+và `pnpm stats` (xem [`docs/plans-api.md`](docs/plans-api.md)). Giao diện tạo kèo (`/new`), trang kèo (`/k/<token>`)
+và thẻ xem trước link vẫn là trang "sắp có", đến ở bước sau của plan Lockin trong workspace `hoandat-app`.
 
 Nút "Tạo kèo" ở trang chủ: đã đăng nhập thì mở `/new`, chưa thì đi qua đăng nhập (`/auth/login?return=/new`) rồi quay
 lại. Nút "Đăng ký…" ở header mở thẳng màn tạo tài khoản hoandat.com (`/auth/login?signup=1`, máy chủ thêm
@@ -20,7 +20,7 @@ lại. Nút "Đăng ký…" ở header mở thẳng màn tạo tài khoản hoan
 | Thư mục | Vai trò |
 |---|---|
 | [`apps/web`](apps/web) | `@lockin/web`: React 19 + Vite + `@achoo254/app-shell`. Trang chủ (câu giá trị, kèo mẫu vẽ bằng HTML/CSS, ba bước), `/login`, trang pháp lý, `/new` và `/k/<token>` tạm, i18n vi/en |
-| [`apps/server`](apps/server) | `@lockin/server`: Express 5 + drizzle + Postgres (PGlite khi dev/test). Đăng nhập BFF qua auth-next (client `lockin-web`), phiên riêng (bảng `users`, `sessions`), kiểm Origin, helmet, giới hạn tần suất đăng nhập, `/healthz` |
+| [`apps/server`](apps/server) | `@lockin/server`: Express 5 + drizzle + Postgres (PGlite khi dev/test). Đăng nhập BFF qua auth-next (client `lockin-web`), phiên riêng (bảng `users`, `sessions`), kiểm Origin, helmet, giới hạn tần suất, `/healthz`; kèo (`plans`, `plan_options`, `participants`, `votes`, `plan_events`), API [`docs/plans-api.md`](docs/plans-api.md) |
 | [`infra`](infra) | nginx `lockin.hoandat.com.conf` (`/api/`, `/auth/`, `/k/`, `/healthz` sang server), unit `lockin-server.service`, script deploy |
 | [`brand`](brand) | Biểu tượng AI gốc (`app-icon-master-1024.png`) và các file sinh từ nó (`pnpm brand:gen`) |
 | [`scripts`](scripts) | `brand-gen`, `check-tokens` (màu chỉ ở `tokens.css`, tương phản WCAG AA) |
@@ -50,6 +50,17 @@ pnpm brand:gen   # sau khi đổi biểu tượng, màu hay brand.config.json
 ```
 
 Máy dev dùng chung: không chạy hai việc nặng (test, build, install) cùng lúc.
+
+## Số liệu phễu
+
+```sh
+DATABASE_URL=postgres://… pnpm stats                   # mọi tài khoản
+DATABASE_URL=postgres://… STATS_EXCLUDE_SUBS=sub1,sub2 pnpm stats --exclude-owner   # bỏ kèo của các tài khoản này
+```
+
+Chỉ đọc (mọi transaction `read only`, không chạy migration). In số kèo theo trạng thái, kèo có từ 2 người vote, mở
+link → tham gia → vote, kèo chốt, đã đi, huỷ, người tạo quay lại trong 30 ngày, khách thành người tạo. Cách đếm:
+[`docs/plans-api.md`](docs/plans-api.md#phễu-và-pnpm-stats).
 
 ## Ghi công và giấy phép
 
