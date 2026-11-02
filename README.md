@@ -33,7 +33,7 @@ Cần Node và pnpm theo `engines`, `packageManager` trong [`package.json`](pack
 
 ```sh
 pnpm install
-pnpm dev          # API ở 127.0.0.1:5300 (PGlite trong .data/), web ở http://localhost:5301
+pnpm dev          # API ở 127.0.0.1:5310 (PGlite trong .data/), web ở http://localhost:5311
 ```
 
 Đăng nhập khi dev: đặt `AUTH_CLIENT_SECRET` (và các biến khác theo [`.env.example`](.env.example)) trong file env của

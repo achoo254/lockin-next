@@ -10,9 +10,9 @@ const emptyIsUnset = (value: unknown): unknown => (value === '' ? undefined : va
 
 const Env = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().min(1).max(65535).default(5300),
+  PORT: z.coerce.number().int().min(1).max(65535).default(5310),
   /** Public origin of the app; the sign-in callback is PUBLIC_URL/auth/callback. */
-  PUBLIC_URL: z.preprocess(emptyIsUnset, z.url().default('http://localhost:5301')),
+  PUBLIC_URL: z.preprocess(emptyIsUnset, z.url().default('http://localhost:5311')),
   DATABASE_URL: z.preprocess(emptyIsUnset, z.url().optional()),
   /** PGlite directory when DATABASE_URL is unset; `memory` keeps it in RAM (E2E starts from an empty database). */
   PGLITE_DIR: z.preprocess(emptyIsUnset, z.string().min(1).optional()),
@@ -58,10 +58,17 @@ export interface ServerConfig {
   signInLimitPer15Min: number;
   /** Plans a signed-in account can make per hour. */
   planCreateLimitPerHour: number;
-  /** Joins (and renames) per hour per IP. */
+  /**
+   * Guest limits per hour, counted per (client IP, plan link) so a whole office or carrier NAT behind one address
+   * can still join one plan together: joins (and renames), vote submissions, going/not answers.
+   */
   joinLimitPerHour: number;
-  /** Vote and going/not submissions per hour per IP. */
   voteLimitPerHour: number;
+  rsvpLimitPerHour: number;
+  /** Ceiling of all guest joins, votes and answers per hour per IP, across every plan. */
+  guestActionLimitPerHourPerIp: number;
+  /** Plan link opens counted per hour per IP; opens past it are still served but not counted (`link_opened`). */
+  linkOpenCountLimitPerHour: number;
   /**
    * AES-256-GCM key of the stored share tokens (SHARE_TOKEN_KEY). Outside production a missing key is replaced by
    * a random one for this process: links made before a restart then cannot be shown again (rotating makes a new one).
@@ -118,8 +125,11 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       : null,
     signInLimitPer15Min: 100,
     planCreateLimitPerHour: 20,
-    joinLimitPerHour: 30,
-    voteLimitPerHour: 120,
+    joinLimitPerHour: 60,
+    voteLimitPerHour: 300,
+    rsvpLimitPerHour: 300,
+    guestActionLimitPerHourPerIp: 3000,
+    linkOpenCountLimitPerHour: 600,
     shareTokenKey,
   };
 }

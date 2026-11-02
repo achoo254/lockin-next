@@ -42,7 +42,7 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
           heading: 'Kèo và lượt vote',
           items: [
             'Với mỗi kèo, máy chủ lưu những gì người tạo nhập: tên kèo, loại hoạt động, khu vực, ngân sách mỗi người và số người trong nhóm (nếu có), hạn vote, các lựa chọn giờ và chỗ, và giờ, chỗ đã chốt.',
-            'Bạn bè tham gia không cần tài khoản: máy chủ lưu tên hiển thị họ tự nhập, các lựa chọn họ vote và việc họ có tham gia hay không. Ngay lần đầu mở link, trình duyệt nhận một cookie chứa mã ngẫu nhiên của riêng kèo đó (kể cả khi chưa nhập tên), để nhận ra cùng trình duyệt khi mở lại và để đếm số lần link được mở; máy chủ chỉ lưu bản băm của mã đó.',
+            'Bạn bè tham gia không cần tài khoản: máy chủ lưu tên hiển thị họ tự nhập, các lựa chọn họ vote và việc họ có tham gia hay không. Khi tham gia một kèo, trình duyệt nhận một cookie chứa mã ngẫu nhiên của riêng kèo đó, để nhận ra cùng trình duyệt khi mở lại; máy chủ chỉ lưu bản băm của mã đó, và cookie hết hạn khi kèo thành chỉ-đọc. Chỉ mở xem kèo thì không có cookie nào. Để đếm số người mở link mà không đếm trùng, máy chủ giữ trong bộ nhớ, không ghi lại, một mã băm của địa chỉ IP và trình duyệt, xoá khi sang ngày mới.',
             'Ai có link kèo đều thấy tên kèo, các lựa chọn, tên hiển thị của người tham gia và lượt vote của họ. Link chỉ chứa mã ngẫu nhiên; máy chủ tìm kèo bằng bản băm của mã, và giữ thêm một bản mã hoá (AES-256-GCM) để người tạo xem lại và gửi lại link. Người tạo đổi được link khi link bị gửi ra ngoài nhóm. Thẻ xem trước của link chỉ có tên kèo, không có tên người tham gia.',
             'App ghi nhật ký thay đổi của kèo (tạo, vote, chốt, huỷ) để đếm số kèo được tạo và được chốt; nhật ký không chứa tên người vote.',
           ],
@@ -56,7 +56,7 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
         {
           heading: 'Số liệu truy cập',
           paragraphs: [
-            'Trang có thể dùng Cloudflare Web Analytics để đếm lượt xem trang. Công cụ này không đặt cookie và không theo dõi bạn sang trang khác. App không dùng quảng cáo và không bán dữ liệu.',
+            'Trang có thể dùng Cloudflare Web Analytics để đếm lượt xem trang. Công cụ này không đặt cookie và không theo dõi bạn sang trang khác. Đường dẫn của link kèo có thể hiện trong số liệu lượt xem gộp mà chỉ người vận hành trang xem được. App không dùng quảng cáo và không bán dữ liệu.',
           ],
         },
         {
@@ -82,7 +82,7 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
           heading: 'Plans and votes',
           items: [
             'For each plan the server keeps what its maker typed: the title, kind of activity, area, budget per person and group size (if any), vote deadline, the time and place options, and the time and place locked in.',
-            'Friends join without an account: the server keeps the display name they type, the options they vote for and whether they are joining. The first time a browser opens a link it gets a cookie with a random code for that plan (even before typing a name), to recognise the same browser when it comes back and to count how often the link is opened; the server stores only its hash.',
+            'Friends join without an account: the server keeps the display name they type, the options they vote for and whether they are joining. On joining a plan the browser gets a cookie with a random code for that plan, to recognise the same browser when it comes back; the server stores only its hash, and the cookie expires when the plan turns read-only. Only viewing a plan sets no cookie. To count how many people open a link without counting anyone twice, the server keeps a hash of the IP address and browser in memory only, never written down, and drops it at the end of the day.',
             "Anyone with a plan's link sees its title, options, the display names of the people who joined and their votes. The link holds only a random code; the server finds the plan by the code's hash and also keeps an encrypted copy (AES-256-GCM) so the maker can see and resend the link. The maker can change the link if it travels outside the group. The link preview shows only the plan's title, never the names of the people in it.",
             'The app logs the changes of a plan (made, voted, locked, cancelled) to count how many plans are made and locked in; the log holds no voter names.',
           ],
@@ -96,7 +96,7 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
         {
           heading: 'Usage numbers',
           paragraphs: [
-            'The site may use Cloudflare Web Analytics to count page views. It sets no cookie and does not follow you to other sites. The app shows no ads and sells no data.',
+            'The site may use Cloudflare Web Analytics to count page views. It sets no cookie and does not follow you to other sites. The path of a plan link may appear in the aggregated page-view figures that only the site operator can see. The app shows no ads and sells no data.',
           ],
         },
         {

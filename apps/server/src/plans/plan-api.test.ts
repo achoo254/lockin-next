@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { participants, planEvents, plans, votes } from '../db/schema';
 import { type FakeIdp, startFakeIdp } from '../../test/fake-idp';
 import { Browser, type CreatedPlan, type PlanAnswer, planBody } from '../../test/plan-browser';
-import { signIn } from '../../test/sign-in';
+import { api, signIn } from '../../test/sign-in';
 import { type TestServer, startTestServer } from '../../test/test-server';
 import { hashToken } from './tokens';
 
@@ -85,6 +85,18 @@ describe('creating and listing plans', () => {
     expect(await past.json()).toEqual({ error: 'invalid-deadline' });
   });
 
+  it('takes a plan with ten places, each with a full-length Google Maps desktop link', async () => {
+    const creator = await signedIn('creator-maps');
+    const places = Array.from({ length: 10 }, (_, i) => ({
+      kind: 'place',
+      label: `Quán ${i}`,
+      mapUrl: `https://www.google.com/maps/place/${`Qu%C3%A1n+${i}+`.padEnd(2000, 'x')}`,
+    }));
+    const body = JSON.stringify(planBody(clock, { options: [{ kind: 'time', startsAt: new Date(clock + 48 * HOUR).toISOString() }, ...places] }));
+    expect(body.length).toBeGreaterThan(8 * 1024);
+    expect((await creator.call('/api/plans', { method: 'POST', body })).status).toBe(201);
+  });
+
   it('lists only the creator’s own plans and keeps other accounts out of them', async () => {
     const mine = await signedIn('creator-list');
     const created = await newPlan(mine, { title: 'Ăn tối', activity: 'dinner' });
@@ -110,8 +122,8 @@ describe('the plan page for guests', () => {
     const opened = await guest.call(`/api/k/${created.share.token}`);
     expect(opened.status).toBe(200);
     expect(opened.headers.get('cache-control')).toBe('no-store');
-    const setCookie = opened.headers.getSetCookie().join('\n');
-    expect(setCookie).toMatch(/lockin_g_[0-9a-f]{32}=[A-Za-z0-9_-]{43}; Max-Age=\d+; Path=\/; Expires=[^;]+; HttpOnly; SameSite=Lax/);
+    // Only reading sets no cookie: a browser does not collect one per plan it looked at.
+    expect(opened.headers.getSetCookie()).toEqual([]);
     const view = ((await opened.json()) as PlanAnswer).plan;
     expect(view.id).toBeUndefined();
     expect(view.viewer).toEqual({ isCreator: false, participantId: null });
@@ -119,6 +131,12 @@ describe('the plan page for guests', () => {
 
     const join = await guest.call(`/api/k/${created.share.token}/join`, { method: 'POST', body: JSON.stringify({ displayName: '  Linh ' }) });
     const me = ((await join.json()) as PlanAnswer).plan.viewer.participantId;
+    // Joining hands out the guest cookie, until the plan turns read-only.
+    const setCookie = join.headers.getSetCookie().join('\n');
+    expect(setCookie).toMatch(/lockin_g_[0-9a-f]{32}=[A-Za-z0-9_-]{43}; Max-Age=\d+; Path=\/; Expires=[^;]+; HttpOnly; SameSite=Lax/);
+    const maxAge = Number(/Max-Age=(\d+)/.exec(setCookie)?.[1]);
+    const readOnlyIn = (new Date(created.plan.readOnlyAt).getTime() - clock) / 1000;
+    expect(Math.abs(maxAge - readOnlyIn)).toBeLessThan(5);
     expect(me).toEqual(expect.any(String));
     const [time] = optionIds(created, 'time');
     const [, place] = optionIds(created, 'place');
@@ -377,7 +395,7 @@ describe('rate limits', () => {
     limitedIdp = await startFakeIdp({ clientId: CLIENT_ID, clientSecret: SECRET, sub: 'creator-limited' });
     limited = await startTestServer(
       { AUTH_ISSUER: limitedIdp.issuer, AUTH_CLIENT_SECRET: SECRET },
-      { planCreateLimitPerHour: 2, joinLimitPerHour: 2, voteLimitPerHour: 2 },
+      { planCreateLimitPerHour: 3, joinLimitPerHour: 2, voteLimitPerHour: 2, rsvpLimitPerHour: 2, guestActionLimitPerHourPerIp: 12, linkOpenCountLimitPerHour: 2 },
     );
   });
   afterAll(async () => {
@@ -385,12 +403,16 @@ describe('rate limits', () => {
     await limitedIdp.close();
   });
 
-  it('limits plans per account, joins and votes per IP', async () => {
+  it('limits plans per account; joins, votes and answers per IP and plan under a per-IP ceiling; counts opens per IP', async () => {
     const creator = new Browser(limited);
     creator.add(await signIn(limited));
     const body = JSON.stringify(planBody(Date.now()));
-    const made = [await creator.call('/api/plans', { method: 'POST', body }), await creator.call('/api/plans', { method: 'POST', body })];
-    expect(made.map((r) => r.status)).toEqual([201, 201]);
+    const made = [
+      await creator.call('/api/plans', { method: 'POST', body }),
+      await creator.call('/api/plans', { method: 'POST', body }),
+      await creator.call('/api/plans', { method: 'POST', body }),
+    ];
+    expect(made.map((r) => r.status)).toEqual([201, 201, 201]);
     const over = await creator.call('/api/plans', { method: 'POST', body });
     expect([over.status, await over.json()]).toEqual([429, { error: 'rate-limited' }]);
     // Another account still can.
@@ -399,11 +421,26 @@ describe('rate limits', () => {
     second.add(await signIn(limited));
     expect((await second.call('/api/plans', { method: 'POST', body })).status).toBe(201);
 
-    const { share } = (await made[0]?.json()) as CreatedPlan;
+    const [first, other, third] = await Promise.all(made.map(async (r) => ((await r.json()) as CreatedPlan).share.token));
     const guest = new Browser(limited);
-    const join = (): Promise<Response> => guest.call(`/api/k/${share.token}/join`, { method: 'POST', body: JSON.stringify({ displayName: 'A' }) });
-    expect([(await join()).status, (await join()).status, (await join()).status]).toEqual([200, 200, 429]);
-    const vote = (): Promise<Response> => guest.call(`/api/k/${share.token}/votes`, { method: 'POST', body: JSON.stringify({ optionIds: [] }) });
-    expect([(await vote()).status, (await vote()).status, (await vote()).status]).toEqual([200, 200, 429]);
+    const post = (token: string | undefined, action: string, payload: unknown): Promise<number> =>
+      guest.call(`/api/k/${token ?? ''}/${action}`, { method: 'POST', body: JSON.stringify(payload) }).then((r) => r.status);
+    const join = (token: string | undefined): Promise<number> => post(token, 'join', { displayName: 'A' });
+    const vote = (token: string | undefined): Promise<number> => post(token, 'votes', { optionIds: [] });
+    const rsvp = (token: string | undefined): Promise<number> => post(token, 'rsvp', { rsvp: 'going' });
+    expect([await join(first), await join(first), await join(first)]).toEqual([200, 200, 429]);
+    // Votes and answers have counters of their own.
+    expect([await vote(first), await vote(first), await vote(first)]).toEqual([200, 200, 429]);
+    expect([await rsvp(first), await rsvp(first), await rsvp(first)]).toEqual([200, 200, 429]);
+    // Another plan from the same address has its own counts, until the per-IP ceiling (12 per hour here, refused requests included).
+    expect([await join(other), await vote(other), await rsvp(other)]).toEqual([200, 200, 200]);
+    expect(await join(third)).toBe(429);
+
+    // Opens are served past the hourly count of the address, but not counted.
+    const opens = await Promise.all([1, 2, 3, 4].map((n) => api(limited, `/api/k/${third ?? ''}`, { headers: { 'user-agent': `browser ${n}` } })));
+    expect(opens.map((r) => r.status)).toEqual([200, 200, 200, 200]);
+    const [plan] = await limited.database.db.select().from(plans).where(eq(plans.shareTokenHash, hashToken(third ?? '')));
+    const opened = await limited.database.db.select().from(planEvents).where(and(eq(planEvents.planId, plan?.id ?? ''), eq(planEvents.type, 'link_opened')));
+    expect(opened).toHaveLength(2);
   });
 });

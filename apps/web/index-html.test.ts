@@ -27,4 +27,32 @@ describe('index.html and the CSP', () => {
     expect(scriptSrcs.length).toBeGreaterThan(0);
     for (const scriptSrc of scriptSrcs) expect(scriptSrc.trim()).toBe("script-src 'self' https://static.cloudflareinsights.com");
   });
+
+  it('sends no Referer from any page (the plan page address carries the share link)', () => {
+    expect(readFileSync(file('./index.html'), 'utf8')).toContain('<meta name="referrer" content="no-referrer" />');
+    const policies = readFileSync(file('../../infra/nginx/lockin.hoandat.com.conf'), 'utf8').match(/add_header Referrer-Policy "[^"]*"/g) ?? [];
+    expect(policies.length).toBeGreaterThan(0);
+    for (const policy of policies) expect(policy).toBe('add_header Referrer-Policy "no-referrer"');
+  });
+});
+
+describe('nginx logs', () => {
+  const conf = (): string => readFileSync(file('../../infra/nginx/lockin.hoandat.com.conf'), 'utf8');
+
+  it('logs access without the Referer or query strings, in every access_log of the site', () => {
+    const format = /log_format lockin_notoken ([^;]*);/.exec(conf())?.[1] ?? '';
+    // The combined layout, with the Referer field blanked and the request line built from $uri.
+    expect(format).toBe(`'$remote_addr - $remote_user [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent "-" "$http_user_agent"'`);
+    expect(conf()).toContain('access_log /var/log/nginx/lockin.hoandat.com.access.log lockin_notoken;');
+    for (const leak of ['$http_referer', '$request ', '$request"', '$request_uri', '$args', '$query_string']) expect(format).not.toContain(leak);
+    const accessLogs = conf().match(/access_log [^;]*;/g) ?? [];
+    expect(accessLogs.length).toBeGreaterThan(0);
+    for (const line of accessLogs) expect(line).toMatch(/^access_log (off|\S+ lockin_notoken);$/);
+  });
+
+  it('keeps plan links out of the access log and the error log', () => {
+    const block = /location ~ \^\/\(api\/\)\?k\/ \{([^}]*)\}/.exec(conf())?.[1] ?? '';
+    expect(block).toContain('access_log off;');
+    expect(block).toMatch(/error_log \S+ crit;/);
+  });
 });

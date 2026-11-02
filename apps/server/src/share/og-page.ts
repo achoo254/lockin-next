@@ -131,7 +131,7 @@ export function ogPageRoutes({ config, db, now, loadTemplate }: OgPageOptions): 
     else res.removeHeader('Content-Security-Policy');
     res
       .status(200)
-      .set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'strict-origin-when-cross-origin' })
+      .set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'no-referrer' })
       .type('html')
       .send(renderPlanPage(template, preview));
   });

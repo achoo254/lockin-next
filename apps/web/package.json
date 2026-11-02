@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5301 --strictPort",
+    "dev": "vite --port 5311 --strictPort",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
-    "preview": "vite preview --port 5301 --strictPort",
+    "preview": "vite preview --port 5311 --strictPort",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p e2e/tsconfig.json",
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },

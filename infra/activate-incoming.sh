@@ -17,7 +17,7 @@
 set -euo pipefail
 ROOT=/var/www/lockin
 HOST=lockin.hoandat.com
-PORT=5300
+PORT=5310
 ID="${1:?usage: lockin-activate-incoming <release-id>}"
 [[ "$ID" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{12}$ ]] || { echo "bad release id" >&2; exit 2; }
 SRC="$ROOT/ci-incoming/$ID"

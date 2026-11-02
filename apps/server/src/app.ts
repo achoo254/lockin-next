@@ -38,7 +38,8 @@ export function createApp({ config, db, now = () => new Date(), loadTemplate = d
   app.use(ogPageRoutes({ config, db, now, loadTemplate }));
 
   app.use(requireSameOrigin(config.publicOrigin));
-  app.use(express.json({ limit: '8kb' }));
+  // 32 KB: a plan with ten long Google Maps links (desktop links run to a couple of KB each) fits; nginx allows 48k.
+  app.use(express.json({ limit: '32kb' }));
   app.use(authRoutes({ config, db, now }));
   const box = shareTokenBoxOf(config);
   app.use(planRoutes({ config, db, now, box }));

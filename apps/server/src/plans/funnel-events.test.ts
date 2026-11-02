@@ -40,7 +40,7 @@ const typesOf = (events: Array<{ type: string }>): Record<string, number> =>
   events.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.type]: (acc[e.type] ?? 0) + 1 }), {});
 
 describe('funnel events', () => {
-  it('records each step once: link opened per browser, joined, voted, locked, done', async () => {
+  it('records each step once: link opened once a day per address and browser, joined, voted, locked, done', async () => {
     const creator = new Browser(server);
     await signInto(creator, 'funnel-creator');
     const created = await create(creator, { creatorDisplayName: 'Minh' });
@@ -52,7 +52,8 @@ describe('funnel events', () => {
     const guest = new Browser(server);
     await guest.call(link);
     await guest.call(link);
-    await new Browser(server).call(link);
+    // Same address, another browser: another visitor.
+    await new Browser(server).call(link, { headers: { 'user-agent': 'another browser' } });
     for (const name of ['Linh', 'Linh Nguyễn']) await guest.call(`${link}/join`, { method: 'POST', body: JSON.stringify({ displayName: name }) });
     const [t1, t2] = created.plan.options.map((o) => o.id);
     for (const ids of [[t1], [t1, t2]]) await guest.call(`${link}/votes`, { method: 'POST', body: JSON.stringify({ optionIds: ids }) });

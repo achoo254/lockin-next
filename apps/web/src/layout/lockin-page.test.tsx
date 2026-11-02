@@ -34,6 +34,12 @@ describe('sign-in links', () => {
   it('only comes back to a page of this site, never to the sign-in page', () => {
     expect(safeReturnPath('/new?x=1')).toBe('/new?x=1');
     for (const unsafe of ['https://evil.example', '//evil.example', '/\\evil', '', null, '/login', '/login?return=/x']) expect(safeReturnPath(unsafe)).toBe('/');
+    // Browsers drop tabs and newlines from a URL, turning these into "//evil.example".
+    for (const unsafe of ['/\t/evil.example', '/\n/evil.example', '/\r\n/evil.example', '/\u007f/evil.example', '/\\/evil.example', `/${'a'.repeat(200)}`]) {
+      expect(safeReturnPath(unsafe)).toBe('/');
+    }
+    expect(safeReturnPath('/k/abc?lang=en#vote')).toBe('/k/abc?lang=en#vote');
+    expect(safeReturnPath('/x/../login')).toBe('/');
   });
 
   it('asks the IdP for its sign-up screen from sign-up links only, back to a page of this site', () => {

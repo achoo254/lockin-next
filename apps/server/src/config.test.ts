@@ -8,7 +8,7 @@ const KEY = randomBytes(32);
 describe('server config', () => {
   it('runs in dev with defaults: PGlite, sign-in off', () => {
     const config = loadConfig({});
-    expect(config).toMatchObject({ nodeEnv: 'development', port: 5300, publicOrigin: 'http://localhost:5301', databaseUrl: undefined, auth: null });
+    expect(config).toMatchObject({ nodeEnv: 'development', port: 5310, publicOrigin: 'http://localhost:5311', databaseUrl: undefined, auth: null });
   });
 
   it('derives the callback from PUBLIC_URL', () => {
@@ -30,7 +30,7 @@ describe('server config', () => {
   });
 
   it('accepts a plain-http issuer only on loopback outside production', () => {
-    expect(loadConfig({ AUTH_ISSUER: 'http://127.0.0.1:5305', AUTH_CLIENT_SECRET: SECRET }).auth?.issuer).toBe('http://127.0.0.1:5305');
+    expect(loadConfig({ AUTH_ISSUER: 'http://127.0.0.1:5315', AUTH_CLIENT_SECRET: SECRET }).auth?.issuer).toBe('http://127.0.0.1:5315');
     expect(() => loadConfig({ AUTH_ISSUER: 'http://auth.example', AUTH_CLIENT_SECRET: SECRET })).toThrow(/AUTH_ISSUER/);
   });
 

@@ -24,10 +24,31 @@ export type LoginState = z.infer<typeof LoginStateSchema>;
 const LOGIN_TTL_SECONDS = 600;
 const b64url = (buf: Buffer): string => buf.toString('base64url');
 
-/** A same-site path to return to, or "/" for anything else (open-redirect guard). */
+/** Stands in for the site's origin when resolving a return path: only "is it still this origin" matters. */
+const RETURN_BASE = 'https://return.invalid';
+/** A control character (tab, newline…): browsers strip them from a URL, so "/\t/evil.com" would become "//evil.com". */
+function hasControlChar(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/**
+ * A same-site path to return to, or "/" for anything else (open-redirect guard): the value must start with "/",
+ * hold no control character or backslash, and resolve to this origin; what comes back is the resolved path, query
+ * and fragment. The web app's session-api.ts applies the same rule before linking here.
+ */
 export function safeReturnPath(value: unknown): string {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/';
-  return value.length <= 200 ? value : '/';
+  if (typeof value !== 'string' || value.length > 200 || !value.startsWith('/') || value.includes('\\') || hasControlChar(value)) return '/';
+  let url: URL;
+  try {
+    url = new URL(value, RETURN_BASE);
+  } catch {
+    return '/';
+  }
+  return url.origin === RETURN_BASE ? `${url.pathname}${url.search}${url.hash}` : '/';
 }
 
 export function newLoginState(returnTo: string, now = Date.now()): LoginState {

@@ -103,6 +103,7 @@ describe('the plan link page', () => {
     const res = await fetch(`${server.origin}/k/${created.share.token}`);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(res.headers.get('x-robots-tag')).toBe('noindex');
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     expect(res.headers.getSetCookie()).toEqual([]);
     expect(res.headers.get('content-security-policy')).toBeNull();
     const nginx = readFileSync(new URL('../../../../infra/nginx/lockin.hoandat.com.conf', import.meta.url), 'utf8');

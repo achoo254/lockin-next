@@ -22,11 +22,32 @@ export async function signOut(): Promise<void> {
 /** The app's sign-in page (a sign-in card for a link or bookmark that opens it). */
 export const LOGIN_PATH = '/login';
 
-/** The paths sign-in may come back to: this site only, as the server checks (apps/server oidc-login.ts). */
+/** Stands in for the site's origin when resolving a return path: only "is it still this origin" matters. */
+const RETURN_BASE = 'https://return.invalid';
+/** A control character (tab, newline…): browsers strip them from a URL, so "/\t/evil.com" would become "//evil.com". */
+function hasControlChar(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/**
+ * The paths sign-in may come back to: this site only, by the same rule as the server (apps/server oidc-login.ts):
+ * starts with "/", no control character or backslash, resolves to this origin; the resolved path, query and fragment.
+ */
 export function safeReturnPath(value: string | null | undefined): string {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/';
+  if (typeof value !== 'string' || value.length > 200 || !value.startsWith('/') || value.includes('\\') || hasControlChar(value)) return '/';
+  let url: URL;
+  try {
+    url = new URL(value, RETURN_BASE);
+  } catch {
+    return '/';
+  }
   // The sign-in page itself would only show the card again.
-  return value === LOGIN_PATH || value.startsWith(`${LOGIN_PATH}?`) ? '/' : value;
+  if (url.origin !== RETURN_BASE || url.pathname === LOGIN_PATH) return '/';
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 /** Where the sign-in page sends the visitor back to (its `?return=`), home by default. */

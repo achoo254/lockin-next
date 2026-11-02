@@ -7,7 +7,7 @@ Wants=network-online.target postgresql.service
 [Service]
 User=lockin
 Group=lockin
-# NODE_ENV=production, PORT=5300, PUBLIC_URL, DATABASE_URL, AUTH_ISSUER, AUTH_CLIENT_ID, AUTH_CLIENT_SECRET:
+# NODE_ENV=production, PORT=5310, PUBLIC_URL, DATABASE_URL, AUTH_ISSUER, AUTH_CLIENT_ID, AUTH_CLIENT_SECRET:
 # written on the server from the env folder outside git (docs/deployment-guide.md), never in the repo.
 EnvironmentFile=/etc/lockin/production.env
 WorkingDirectory=/var/www/lockin/current

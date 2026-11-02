@@ -28,6 +28,12 @@ describe('login state cookie', () => {
     expect(safeReturnPath('https://evil.example')).toBe('/');
     expect(safeReturnPath('/\\evil.example')).toBe('/');
     expect(safeReturnPath(undefined)).toBe('/');
+    // Browsers drop tabs and newlines from a URL, turning these into "//evil.example".
+    for (const unsafe of ['/\t/evil.example', '/\n/evil.example', '/\r\n/evil.example', '/\u0000/evil.example', '\\/evil.example', '/\\/evil.example', `/${'a'.repeat(200)}`]) {
+      expect(safeReturnPath(unsafe)).toBe('/');
+    }
+    expect(safeReturnPath('/k/abc?lang=en#vote')).toBe('/k/abc?lang=en#vote');
+    expect(safeReturnPath('/a/../new')).toBe('/new');
   });
 });
 

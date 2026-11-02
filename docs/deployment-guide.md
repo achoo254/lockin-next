@@ -9,17 +9,19 @@ vào đây; dùng alias SSH (`SSH_TARGET`) và placeholder như `<SERVER_65_IP>`
 | Phần | Ở đâu |
 |---|---|
 | Web (React + Vite, tĩnh) | `/var/www/lockin/current/apps/web/dist`, nginx phục vụ trực tiếp |
-| API (Node, Express 5, một file bundle) | systemd `lockin-server`, loopback `127.0.0.1:5300`, Node 22 ở `/opt/node22` |
+| API (Node, Express 5, một file bundle) | systemd `lockin-server`, loopback `127.0.0.1:5310`, Node 22 ở `/opt/node22` |
 | Database | Postgres đang chạy trên `.65`, database `lockin`, role `lockin`; migration chạy khi server khởi động |
 | Đường vào | Cloudflare (proxied, SSL "full") → nginx `conf.d/lockin.hoandat.com.conf` → `/api/`, `/auth/`, `/k/`, `/healthz` sang API |
 | Đăng nhập | client BFF `lockin-web` trên `auth.hoandat.com`, scope `openid profile email`, callback `https://lockin.hoandat.com/auth/callback`; tên, email, ảnh lấy từ userinfo lúc đăng nhập, lưu ở bảng `users` cho menu tài khoản |
 
-**Cổng `5300` là tạm.** Trước lần cài đầu phải kiểm còn trống trên `.65`: `ss -ltnp | grep -E ':530[0-9]\b'`. Trùng thì
-chọn cổng khác và đổi cùng lúc ở `infra/nginx/lockin.hoandat.com.conf`, `infra/activate-incoming.sh` (`PORT`),
-`PORT` trong env production, và mục này.
+Cổng `5310` đã kiểm còn trống trên `.65` ngày 02/11/2026 (`5300` là của `truyen-server`). Đổi cổng thì đổi cùng lúc ở
+`infra/nginx/lockin.hoandat.com.conf`, `infra/activate-incoming.sh` (`PORT`), `PORT` trong env production, và mục này.
 
 Link kèo `/k/<token>` và API khách `/api/k/<token>/…` mang token chia sẻ trong đường dẫn, nên nginx chuyển chúng cho
-server với `access_log off`: token không bao giờ nằm trong log truy cập. `/k/<token>` là trang `index.html` của bản web
+server với `access_log off` và `error_log … crit` (lỗi upstream thường ghi kèm dòng request): token không nằm trong
+log của nginx. Các trang khác ghi log truy cập theo định dạng `lockin_notoken` (khai ở đầu file site, file được nạp ở
+mức `http` qua `conf.d`): chỉ đường dẫn `$uri` (không query string), không `Referer`. Cả site gửi
+`Referrer-Policy: no-referrer`, nên trình duyệt cũng không gửi link kèo đi đâu qua `Referer`. `/k/<token>` là trang `index.html` của bản web
 đang chạy (`apps/web/dist/index.html`, server đọc một lần mỗi lần khởi động) có thêm thẻ xem trước của kèo
 (`apps/server/src/share/og-page.ts`); server gửi kèm đúng CSP của `location /` trong nginx (test giữ hai chuỗi giống
 nhau). Khi dev, Vite cũng chuyển `/k/` sang server, server lấy trang từ chính Vite (`PUBLIC_URL`). Server giữ một tiến trình Node, không worker;
@@ -38,7 +40,7 @@ không bao giờ trong repo. Trên server là `/etc/lockin/production.env` (`roo
 | Biến | Production |
 |---|---|
 | `NODE_ENV` | `production` (bắt buộc có `DATABASE_URL`, `AUTH_CLIENT_SECRET`, `SHARE_TOKEN_KEY`, `PUBLIC_URL` https) |
-| `PORT` | `5300` (tạm, xem trên) |
+| `PORT` | `5310` |
 | `PUBLIC_URL` | `https://lockin.hoandat.com` |
 | `DATABASE_URL` | `postgres://lockin:<mật khẩu>@127.0.0.1:5432/lockin` |
 | `AUTH_ISSUER` | `https://auth.hoandat.com` |
@@ -146,6 +148,6 @@ reload), xoá bản ghi DNS, gỡ `LOCKIN_WEB_*` trên IdP.
 ## Log
 
 `journalctl -u lockin-server`; nginx: `/var/log/nginx/lockin.hoandat.com.{access,error}.log` (không có `/k/` và
-`/api/k/`). Log của server chỉ ghi lỗi và trạng thái đăng nhập: lỗi truy vấn chỉ ghi mã và thông báo của Postgres,
+`/api/k/`, không `Referer`, không query string). Log của server chỉ ghi lỗi và trạng thái đăng nhập: lỗi truy vấn chỉ ghi mã và thông báo của Postgres,
 không ghi câu SQL hay tham số (`apps/server/src/log-error.ts`, có test). Phiên hết hạn bị xoá khi server khởi động,
 mỗi giờ và mỗi lần đăng nhập. Mất kết nối Postgres (Postgres chung restart) không làm sập service.
