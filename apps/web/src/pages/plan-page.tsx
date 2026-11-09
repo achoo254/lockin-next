@@ -156,7 +156,16 @@ function PlanBody({ plan, token, path, session, onChange }: PlanBodyProps): Reac
       <>
         <PlanHead plan={plan} now={now} invite={false} />
         {plan.can.vote && <NudgeCard plan={plan} link={link} />}
-        <LockPanel key={plan.options.map((option) => option.id).join()} plan={plan} onChange={onChange} onRotated={() => window.location.assign(`/plans/${encodeURIComponent(plan.id ?? '')}`)} />
+        {plan.can.vote && (
+          <section className="group" aria-labelledby="creator-vote" data-id="creator-vote">
+            <h2 className="sec-title" id="creator-vote">
+              {t('plan.creatorVoteHeading')}
+            </h2>
+            <VoteBoard key={`vote-${plan.viewer.participantId ?? 'new'}`} plan={plan} token={token} mode="vote" onChange={onChange} onSent={() => setSentNow(true)} />
+          </section>
+        )}
+        {/* Keyed on the votes too, so the pre-picked leader follows the creator's own vote. */}
+        <LockPanel key={plan.options.map((option) => `${option.id}:${option.votes}`).join()} plan={plan} onChange={onChange} onRotated={() => window.location.assign(`/plans/${encodeURIComponent(plan.id ?? '')}`)} />
       </>
     );
   }

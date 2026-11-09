@@ -160,6 +160,11 @@ test('a signed-in creator makes a plan, a guest votes without an account, the cr
   // The creator locks it in: the leaders are picked already.
   await page.goto(planPath);
   await expect(page.locator('[data-id=lock-panel]')).toContainText('1/3 người đã vote');
+  // The creator votes too, like a guest, above the lock panel; the lock choices are radios.
+  await page.locator('[data-id=creator-vote] [data-id^=option-]', { hasText: 'Quán B' }).click();
+  await page.click('[data-id=creator-vote] [data-id=vote-submit]');
+  await expect(page.locator('[data-id=lock-panel]')).toContainText('2/3 người đã vote');
+  await expect(page.locator('[data-id=lock-panel] [role=radio]', { hasText: 'Quán B' })).toHaveAttribute('aria-checked', 'true');
   await placeOptionsFit(page);
   await shoot(page, testInfo, '05-creator-lock');
   await page.click('[data-id=lock-submit]');

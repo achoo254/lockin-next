@@ -673,6 +673,9 @@ button.opt[disabled] {
   border-radius: 7px;
   background: transparent;
 }
+.opt.radio .box {
+  border-radius: 50%;
+}
 .opt .box .icon {
   width: 14px;
   height: 14px;

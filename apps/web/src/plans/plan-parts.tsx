@@ -78,7 +78,8 @@ export function OptionRow({ option, area, share, pressed, win, note, onClick, ro
       {share !== null && <span className="bar" style={{ inlineSize: `${Math.round(share * 100)}%` }} aria-hidden="true" />}
     </>
   );
-  const className = `opt${win ? ' win' : ''}`;
+  // A radio (pick exactly one, as when locking in) gets a round mark, so it does not look like a multi-pick vote.
+  const className = `opt${win ? ' win' : ''}${role === 'radio' ? ' radio' : ''}`;
   const row = !onClick ? (
     <div className={className}>{content}</div>
   ) : (
