@@ -43,6 +43,15 @@ describe('locking a plan in', () => {
     expect(nudgeLine(declined)).toEqual({ kind: 'left', k: 2 });
   });
 
+  it('names only the people who voted, none while nobody has', () => {
+    show(makePlan({ participants: [person('me', 'Minh', [], 'going', true)] }));
+    expect(screen.getByText('Chưa ai vote. Gửi link vào nhóm nhé.')).toBeTruthy();
+    expect(document.querySelector('.people')).toBeNull();
+    cleanup();
+    show(makePlan({ participants: [person('me', 'Minh', [], 'going', true), person('g1', 'Linh', [T1], 'going')] }));
+    expect([...document.querySelectorAll('.people .person')].map((li) => li.textContent)).toEqual(['LLinh']);
+  });
+
   it('pre-picks the time with most votes, waits for the creator on a tied place, then locks both', async () => {
     const plan = creatorPlan({
       groupSize: 6,

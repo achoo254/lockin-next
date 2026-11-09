@@ -36,6 +36,8 @@ export function LockPanel({ plan, onChange, onRotated }: LockPanelProps): ReactN
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const voters = voterCount(plan);
+  // Only people who voted: the creator joins on creation, so listing everyone shows them under "nobody voted".
+  const voted = plan.participants.filter((person) => person.optionIds.length > 0);
   const ready = (times.length === 0 || timeId !== null) && (places.length === 0 || placeId !== null);
   const deadlinePassed = !plan.can.vote;
 
@@ -92,9 +94,9 @@ export function LockPanel({ plan, onChange, onRotated }: LockPanelProps): ReactN
           <Icon name="users" />
           <strong>{voters > 0 ? votersLine : t('lock.noVoters')}</strong>
         </p>
-        {plan.participants.length > 0 && (
+        {voted.length > 0 && (
           <ul className="people">
-            {plan.participants.map((person) => (
+            {voted.map((person) => (
               <PersonChip
                 key={person.id}
                 name={person.displayName}
