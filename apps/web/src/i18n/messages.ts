@@ -259,6 +259,7 @@ export const vi = {
 
   'list.title': 'Kèo của tôi',
   'list.people': '{n} người tham gia',
+  'list.noPeople': 'Chưa ai tham gia',
   'list.deadline': 'Hạn vote {when}',
   'list.open': 'Mở kèo',
   'list.share': 'Gửi link',
@@ -562,6 +563,7 @@ export const en: Messages = {
 
   'list.title': 'My plans',
   'list.people': '{n} joined',
+  'list.noPeople': 'Nobody has joined yet',
   'list.deadline': 'Vote by {when}',
   'list.open': 'Open',
   'list.share': 'Send link',

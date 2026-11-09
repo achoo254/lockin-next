@@ -125,6 +125,14 @@ describe('creating and listing plans', () => {
     const list = (await (await mine.call('/api/plans')).json()) as { plans: Array<{ id: string; title: string; participantCount: number }> };
     expect(list.plans).toEqual([expect.objectContaining({ id: created.plan.id, title: 'Ăn tối', participantCount: 0 })]);
 
+    // The creator who joined their own plan is not counted; a guest is.
+    const joinedByCreator = await newPlan(mine, { title: 'Cà phê', creatorDisplayName: 'Minh' });
+    const count = async (): Promise<number | undefined> =>
+      ((await (await mine.call('/api/plans')).json()) as typeof list).plans.find((p) => p.id === joinedByCreator.plan.id)?.participantCount;
+    expect(await count()).toBe(0);
+    await joinedGuest(joinedByCreator.share.token, 'Linh');
+    expect(await count()).toBe(1);
+
     const other = await signedIn('someone-else');
     expect(await (await other.call('/api/plans')).json()).toEqual({ plans: [] });
     const peek = await other.call(`/api/plans/${created.plan.id ?? ''}`);

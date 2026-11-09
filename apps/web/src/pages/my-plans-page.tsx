@@ -84,7 +84,7 @@ export function MyPlansPage({ session }: { session: SessionState }): ReactNode {
                 </p>
               )}
               <p className="muted">
-                {t('list.people', { n: plan.participantCount })} · {t('list.deadline', { when: formatVnDateTime(plan.voteDeadline, locale) })}
+                {plan.participantCount > 0 ? t('list.people', { n: plan.participantCount }) : t('list.noPeople')} · {t('list.deadline', { when: formatVnDateTime(plan.voteDeadline, locale) })}
               </p>
               <div className="row">
                 {plan.shareUrl && (

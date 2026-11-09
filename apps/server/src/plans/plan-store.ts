@@ -215,6 +215,7 @@ export interface PlanSummary {
   status: PlanStatus;
   voteDeadline: Date;
   createdAt: Date;
+  /** Guests who joined, not counting the creator. */
   participantCount: number;
   /** The sealed share token (open it with the ShareTokenBox), null for a link made before it was kept. */
   shareTokenEnc: string | null;
@@ -233,9 +234,11 @@ export async function listCreatorPlans(db: Db, owner: { sub: string | null; crea
   const mine = conditions.length > 0 ? or(...conditions) : undefined;
   if (!mine) return [];
   await sweepPlans(db, now, mine);
+  // Guests only: the creator joins their own plan on creation and is not "someone who joined".
   const counts = db
     .select({ planId: participants.planId, n: count().as('n') })
     .from(participants)
+    .where(eq(participants.isCreator, false))
     .groupBy(participants.planId)
     .as('counts');
   const rows = await db
