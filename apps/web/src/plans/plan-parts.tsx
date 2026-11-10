@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { type PlanOption, type PlanView, RSVPS, type Rsvp } from '../api/plans-api';
 import { useI18n } from '../i18n/i18n';
 import { Icon, type IconName } from '../ui/icon';
-import { mapHref, nudgeLine, optionText } from './plan-format';
+import { mapHref, nudgeLine, optionText, reminderText } from './plan-format';
 import { copyText, useFlag } from './share-actions';
 import { formatDong, formatLeft, formatVnDateTime } from './vn-time';
 
@@ -196,7 +196,6 @@ export function NudgeCard({ plan, link }: { plan: PlanView; link: string }): Rea
   const line = nudgeLine(plan);
   const text =
     line.kind === 'voted' ? t('nudge.voted', { n: line.n }) : line.kind === 'left' ? t('nudge.left', { k: line.k }) : t('nudge.all');
-  const reminder = t('nudge.text', { title: plan.title, deadline: formatVnDateTime(plan.voteDeadline, locale), link });
   return (
     <div className="card nudge" data-id="nudge">
       <strong>{text}</strong>
@@ -204,7 +203,7 @@ export function NudgeCard({ plan, link }: { plan: PlanView; link: string }): Rea
         type="button"
         className={copied ? 'btn btn-ghost btn-sm is-done' : 'btn btn-ghost btn-sm'}
         aria-live="polite"
-        onClick={() => void copyText(reminder).then((ok) => ok && flagCopied())}
+        onClick={() => void copyText(reminderText(plan, link, new Date(), t, locale)).then((ok) => ok && flagCopied())}
         data-id="nudge-copy"
       >
         <Icon name={copied ? 'check' : 'copy'} />

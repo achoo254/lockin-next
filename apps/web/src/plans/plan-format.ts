@@ -2,8 +2,8 @@
 import type { PlanOption, PlanView } from '../api/plans-api';
 // One check of map links on both sides: the server refuses what this would not send.
 import { mapsSearchUrl } from '../../../server/src/plans/map-link';
-import type { Locale } from '../i18n/i18n';
-import { formatVnDateTime } from './vn-time';
+import type { Locale, Translate } from '../i18n/i18n';
+import { formatLeft, formatVnDateTime } from './vn-time';
 
 /** An http(s) link someone pasted as a place. */
 export function isLink(text: string): boolean {
@@ -65,6 +65,28 @@ export function nudgeLine(plan: PlanView): NudgeLine {
   if (plan.groupSize === null) return { kind: 'voted', n: voted };
   const left = plan.groupSize - voted;
   return left > 0 ? { kind: 'left', k: left } : { kind: 'all' };
+}
+
+/**
+ * The text copied by "Chép lời nhắc", built from the plan as it is now: how many have voted or are still missing,
+ * how long is left, and what leads (a tie names nobody). It is built on click, so a changed vote or the clock moves it.
+ */
+export function reminderText(plan: PlanView, link: string, now: Date, t: Translate, locale: Locale): string {
+  const line = nudgeLine(plan);
+  const left = formatLeft(new Date(plan.voteDeadline), now, t) ?? formatVnDateTime(plan.voteDeadline, locale);
+  const picks = (['time', 'place'] as const)
+    .map((kind) => {
+      const options = optionsOf(plan, kind);
+      const { leaderId } = kindLeader(options);
+      const leader = options.find((option) => option.id === leaderId);
+      return leader ? optionText(leader, locale) : null;
+    })
+    .filter((pick): pick is string => pick !== null);
+  const lead = picks.length > 0 ? t('nudge.lead', { pick: picks.join(' · ') }) : '';
+  const common = { title: plan.title, left, lead, link };
+  if (line.kind === 'left') return t('nudge.text.left', { ...common, k: line.k });
+  if (line.kind === 'voted') return t('nudge.text.voted', { ...common, n: line.n });
+  return t('nudge.text.all', common);
 }
 
 /** The options the plan was locked in on, in time-then-place order. */
