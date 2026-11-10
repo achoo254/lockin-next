@@ -178,6 +178,13 @@ describe('the plan page for guests', () => {
     expect(afterRsvp.participants.find((p) => p.id === me)).toEqual({ id: me, displayName: 'Linh', rsvp: 'going', isCreator: false, optionIds: [time, place] });
     expect(afterRsvp.options.filter((o) => o.votes === 1).map((o) => o.id)).toEqual([time, place]);
 
+    // Saying "no" keeps the saved picks but drops them from the tally.
+    const declined = await guest.call(`/api/k/${created.share.token}/rsvp`, { method: 'POST', body: JSON.stringify({ rsvp: 'no' }) });
+    const afterNo = ((await declined.json()) as PlanAnswer).plan;
+    expect(afterNo.participants.find((p) => p.id === me)?.optionIds).toEqual([time, place]);
+    expect(afterNo.options.every((o) => o.votes === 0)).toBe(true);
+    await guest.call(`/api/k/${created.share.token}/rsvp`, { method: 'POST', body: JSON.stringify({ rsvp: 'going' }) });
+
     // Renaming keeps the participant (and its votes).
     const renamed = await guest.call(`/api/k/${created.share.token}/join`, { method: 'POST', body: JSON.stringify({ displayName: 'Linh Ng' }) });
     const afterRename = ((await renamed.json()) as PlanAnswer).plan;

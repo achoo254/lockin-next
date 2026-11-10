@@ -90,8 +90,10 @@ export async function buildPlanView(
   ]);
   const tally = new Map<string, number>();
   const byParticipant = new Map<string, string[]>();
+  const notGoing = new Set(people.filter((person) => person.rsvp === 'no').map((person) => person.id));
   for (const ballot of ballots) {
-    tally.set(ballot.optionId, (tally.get(ballot.optionId) ?? 0) + 1);
+    // A person who is not going still has their picks saved (shown to them), but they do not count toward the tally.
+    if (!notGoing.has(ballot.participantId)) tally.set(ballot.optionId, (tally.get(ballot.optionId) ?? 0) + 1);
     byParticipant.set(ballot.participantId, [...(byParticipant.get(ballot.participantId) ?? []), ballot.optionId]);
   }
   const allowed = (action: PlanAction): boolean => (viewer.isCreator || !CREATOR_ACTIONS.includes(action)) && canDo(action, plan, now);

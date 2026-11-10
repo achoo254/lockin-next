@@ -36,9 +36,9 @@ export function mapHref(place: Pick<PlanOption, 'label' | 'mapUrl'>, area: strin
 
 export const optionsOf = (plan: PlanView, kind: PlanOption['kind']): PlanOption[] => plan.options.filter((option) => option.kind === kind);
 
-/** People who picked at least one option. */
+/** People who have answered: picked at least one option, or said they are not going. */
 export function voterCount(plan: PlanView): number {
-  return plan.participants.filter((person) => person.optionIds.length > 0).length;
+  return plan.participants.filter((person) => person.optionIds.length > 0 || person.rsvp === 'no').length;
 }
 
 export interface KindLeader {
