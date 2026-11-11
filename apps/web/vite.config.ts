@@ -20,5 +20,7 @@ export default defineConfig({
     // fall back to a system font.
     assetsInlineLimit: (file) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
     sourcemap: true,
+    // The one chunk above 500 kB is three.js with the scene, loaded on demand by a locked plan (plans/scene); the main chunk stays small.
+    chunkSizeWarningLimit: 600,
   },
 });

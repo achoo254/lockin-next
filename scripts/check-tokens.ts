@@ -42,6 +42,10 @@ const FILLS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['--c-lock', ['--story-ink']],
   ...['cafe', 'food', 'karaoke', 'trip', 'birthday', 'lunch', 'teambuilding', 'meeting'].map((name) => [`--story-${name}`, ['--story-ink']] as const),
   ...['movie', 'party'].map((name) => [`--story-${name}`, ['--story-ink-light']] as const),
+  // The scene (plans/scene): the name label (light on dark, the initial dark on the group's colour) and the speech bubble.
+  ['--scene-label-bg', ['--c-text']],
+  ['--scene-bubble', ['--scene-bubble-ink']],
+  ...['sit', 'time', 'place', 'both', 'none', 'no'].map((name) => [`--status-${name}`, ['--c-bg']] as const),
 ];
 /** Non-text marks at 3:1: the focus ring, and the outline of a control (input, vote box, link box) on what it sits on. */
 const MARKS: ReadonlyArray<readonly [string, readonly string[]]> = [

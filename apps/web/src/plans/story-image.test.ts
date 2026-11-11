@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIVITIES } from '../api/plans-api';
-import { type Measure, type StoryInput, STORY_HEIGHT, STORY_WIDTH, fitNames, storyLayout, wrapText } from './story-image';
+import { type Measure, SCENE_H, SCENE_W, type StoryInput, STORY_HEIGHT, STORY_WIDTH, fitNames, storyLayout, wrapText } from './story-image';
 import { DEFAULT_TEMPLATE, STORY_TEMPLATES, storyTemplate } from './story-templates';
 
 const stickerFiles = Object.keys(import.meta.glob('../../public/stickers/*.webp')).map((file) => file.replace('../../public', ''));
@@ -78,6 +78,45 @@ describe('story text layout', () => {
       storyLayout(input({ template }), measure).flatMap((shape) => (shape.kind === 'image' ? [shape.src] : []));
     expect(images(storyTemplate('coffee'))).toEqual(['logo', 'sticker']);
     expect(images(DEFAULT_TEMPLATE)).toEqual(['logo', 'logo']);
+  });
+});
+
+describe('story image with the scene', () => {
+  const withScene = (overrides: Partial<StoryInput> = {}): ReturnType<typeof storyLayout> => storyLayout(input({ hasScene: true, ...overrides }), measure);
+
+  it('draws the scene picture framed in the width of the info boxes, in place of the sticker', () => {
+    const shapes = withScene();
+    const photos = shapes.filter((shape) => shape.kind === 'photo');
+    expect(photos).toHaveLength(1);
+    const photo = photos[0];
+    expect(photo?.kind === 'photo' && [photo.w, photo.h]).toEqual([SCENE_W, SCENE_H]);
+    expect(shapes.flatMap((shape) => (shape.kind === 'image' ? [shape.src] : []))).toEqual(['logo']);
+  });
+
+  it('keeps the title, the stamp, the boxes with the names, and the footer below the picture', () => {
+    const shapes = withScene();
+    const photo = shapes.find((shape) => shape.kind === 'photo');
+    const bottom = photo?.kind === 'photo' ? photo.y + photo.h : 0;
+    const body = shapes.filter((shape) => shape.kind === 'text' && shape.text !== 'Lockin');
+    for (const shape of body) expect(shape.kind === 'text' && shape.y).toBeGreaterThan(bottom);
+    expect(texts(shapes)).toEqual(expect.arrayContaining(['Cà phê thứ Bảy', 'ĐÃ CHỐT', 'Thứ Bảy 07/11, 9:00', 'Quán cà phê B · Quận 3', 'Minh, Linh, Tú', 'Chốt kèo trên lockin.hoandat.com']));
+  });
+
+  it('shortens a long title to two lines so everything still fits under the picture', () => {
+    const shapes = withScene({ title: 'Kèo cực kỳ dài '.repeat(12), names: Array.from({ length: 60 }, (_, i) => `Người bạn số ${i}`) });
+    expect(shapes.filter((shape) => shape.kind === 'text' && shape.font.includes('112px'))).toHaveLength(2);
+    for (const shape of shapes) {
+      if (shape.kind === 'rect' || shape.kind === 'photo') {
+        expect(shape.x + shape.w).toBeLessThanOrEqual(STORY_WIDTH);
+        expect(shape.y + shape.h).toBeLessThanOrEqual(STORY_HEIGHT);
+      }
+    }
+  });
+
+  it('is the old layout, sticker included, when there is no scene', () => {
+    const shapes = storyLayout(input(), measure);
+    expect(shapes.some((shape) => shape.kind === 'photo')).toBe(false);
+    expect(shapes.flatMap((shape) => (shape.kind === 'image' ? [shape.src] : []))).toEqual(['logo', 'sticker']);
   });
 });
 

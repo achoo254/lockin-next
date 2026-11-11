@@ -10,6 +10,12 @@ giờ và chỗ, cả nhóm thấy kết quả và ai đi. Miễn phí, không g
 **Trạng thái:** đang chạy: tạo kèo (`/new`), màn gửi link (`/plans/<id>`), trang kèo (`/k/<token>`) với thẻ xem trước
 link, "Kèo của tôi" (`/plans`), nhật ký phễu và `pnpm stats` (xem [`docs/plans-api.md`](docs/plans-api.md)).
 
+Kèo đã chốt của bữa ăn (ăn tối, ăn trưa, tiệc, sinh nhật, team building) có "ảnh bìa" 3D trên thẻ vé: quán bia hơi
+vỉa hè Hà Nội, ai vote đúng giờ và đúng nơi đã chốt thì ngồi bàn ghế nhựa, ai lệch giờ, lệch nơi, chưa vote hay không đi
+thì đứng ngoài với bong bóng nói lý do (xoay bằng kéo, zoom bằng nút +/−, lăn chuột hoặc hai ngón; chạm nhân vật để xem họ
+vote gì). Lần đầu mở kèo vừa chốt, người ngồi bàn lần lượt đi vào ghế; ảnh story chia sẻ cũng có cảnh này. Cảnh nằm trong
+`apps/web/src/plans/scene` và tải riêng cùng three.js khi cần; máy không có WebGL thì vé vẫn như cũ.
+
 Nút "Lên kèo" ở trang chủ mở thẳng `/new`, không cần đăng nhập. Tạo khi chưa đăng nhập: trình duyệt giữ quyền người tạo
 bằng cookie `__Host-lockin_c_<id kèo>`, và người tạo nhận một **link quản lý** riêng (`/m/<id kèo>.<token>`) để mở kèo
 trên máy khác; màn gửi link và lúc chốt mời "Lưu kèo vào tài khoản hoandat.com (miễn phí)", đi qua đăng ký/đăng nhập rồi
@@ -21,7 +27,7 @@ lý. Người tạo đổi được link quản lý trên màn gửi link. Nút 
 
 | Thư mục | Vai trò |
 |---|---|
-| [`apps/web`](apps/web) | `@lockin/web`: React 19 + Vite + `@achoo254/app-shell`. Trang chủ (câu giá trị, kèo mẫu vẽ bằng HTML/CSS, ba bước), `/login`, trang pháp lý, `/new` và `/k/<token>` tạm, i18n vi/en |
+| [`apps/web`](apps/web) | `@lockin/web`: React 19 + Vite + `@achoo254/app-shell`. Trang chủ (câu giá trị, kèo mẫu vẽ bằng HTML/CSS, ba bước), `/login`, trang pháp lý, `/new` và `/k/<token>` tạm, i18n vi/en; cảnh 3D của kèo đã chốt (`src/plans/scene`, three.js tải riêng) |
 | [`apps/server`](apps/server) | `@lockin/server`: Express 5 + drizzle + Postgres (PGlite khi dev/test). Đăng nhập BFF qua auth-next (client `lockin-web`), phiên riêng (bảng `users`, `sessions`), kiểm Origin, helmet, giới hạn tần suất, `/healthz`; kèo (`plans`, `plan_options`, `participants`, `votes`, `plan_events`), API [`docs/plans-api.md`](docs/plans-api.md) |
 | [`infra`](infra) | nginx `lockin.hoandat.com.conf` (`/api/`, `/auth/`, `/k/`, `/healthz` sang server), unit `lockin-server.service`, script deploy |
 | [`brand`](brand) | Biểu tượng AI gốc (`app-icon-master-1024.png`) và các file sinh từ nó (`pnpm brand:gen`) |

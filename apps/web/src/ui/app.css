@@ -1283,6 +1283,158 @@ button.opt[disabled] {
   font-weight: 700;
 }
 
+/* ---------- scene: who sits where on a locked plan ---------- */
+.scene-stage {
+  position: relative;
+  aspect-ratio: 16 / 11;
+  min-height: 300px;
+  background: var(--scene-sky-glow);
+}
+@media (max-width: 560px) {
+  .scene-stage {
+    aspect-ratio: 1;
+  }
+}
+/* Pan-y: a vertical swipe still scrolls the page; a sideways drag turns the scene and two fingers zoom it. */
+.scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.scene-canvas:active {
+  cursor: grabbing;
+}
+.scene-canvas:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -2px;
+}
+.scene-hint {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--c-topbar);
+  color: var(--c-text);
+  font-size: var(--fs-xs);
+  pointer-events: none;
+}
+.scene-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--scene-bubble-ink);
+  font-weight: 700;
+}
+.scene-zoom {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+}
+.scene-zoom button {
+  width: var(--tap);
+  height: var(--tap);
+  border: var(--line-control);
+  border-radius: var(--radius-full);
+  background: var(--c-topbar);
+  color: var(--c-text);
+  font-size: var(--fs-xl);
+  line-height: 1;
+}
+.scene-zoom button:hover {
+  background: var(--c-hover);
+}
+.scene-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--line);
+  background: var(--c-bg);
+}
+.scene-info b {
+  display: block;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.scene-info span:not(.scene-dot) {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+.scene-info p {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+.scene-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--c-text-muted);
+}
+.scene-dot[data-group="sit"] {
+  background: var(--status-sit);
+}
+.scene-dot[data-group="time"] {
+  background: var(--status-time);
+}
+.scene-dot[data-group="place"] {
+  background: var(--status-place);
+}
+.scene-dot[data-group="both"] {
+  background: var(--status-both);
+}
+.scene-dot[data-group="none"] {
+  background: var(--status-none);
+}
+.scene-dot[data-group="no"] {
+  background: var(--status-no);
+}
+.scene-groups {
+  padding: var(--space-4) var(--space-4) 0;
+}
+.scene-groups .eyebrow {
+  margin-bottom: var(--space-3);
+}
+.scene-groups ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+}
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-1) var(--space-3);
+  border: var(--line);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+}
+.group-chip em {
+  font-style: normal;
+  color: var(--c-text-muted);
+}
+.group-chip:hover {
+  background: var(--c-hover);
+}
+.group-chip[aria-pressed="true"] {
+  border: var(--line-control);
+  background: var(--c-surface-subtle);
+}
+
 /* ---------- state cards ---------- */
 .state {
   display: flex;

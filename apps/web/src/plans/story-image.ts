@@ -36,6 +36,8 @@ export interface StoryInput {
   area: string | null;
   names: string[];
   nobodyLabel: string;
+  /** A picture of the scene (who sits where) is drawn in place of the sticker. Set by renderStoryPng. */
+  hasScene?: boolean;
 }
 
 /** Width of `text` in `font` (canvas measureText in the browser). */
@@ -48,6 +50,7 @@ export type StoryShape =
   | { kind: 'text'; text: string; x: number; y: number; font: string; fill: keyof StoryColours; align?: 'left' | 'center'; rotate?: number; pivot?: [number, number] }
   | { kind: 'pattern'; pattern: StoryPattern }
   | { kind: 'image'; src: 'logo' | 'sticker'; x: number; y: number; size: number; framed: boolean }
+  | { kind: 'photo'; x: number; y: number; w: number; h: number }
   | { kind: 'icon'; icon: StoryIcon; x: number; y: number; size: number };
 
 export const FONT_DISPLAY = '"Bricolage Grotesque", "Be Vietnam Pro", sans-serif';
@@ -136,6 +139,11 @@ const LINE_STEP = 62;
 const ICON = 52;
 const ICON_GAP = 22;
 const STICKER = 460;
+/** The scene picture: the width of the info boxes, at 5:3. Its pixels are drawn at SCENE_RENDER_SCALE times this. */
+const SCENE_Y = 210;
+export const SCENE_W = INNER_W;
+export const SCENE_H = 540;
+export const SCENE_RENDER_SCALE = 1.6;
 
 /** Every shape of the story image, back to front. */
 export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
@@ -146,13 +154,19 @@ export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
   // The brand: the icon and the name, small at the top.
   shapes.push({ kind: 'image', src: 'logo', x: MARGIN, y: 96, size: 88, framed: true });
   shapes.push({ kind: 'text', text: input.appName, x: MARGIN + 88 + 28, y: 162, font: font(800, 64, FONT_DISPLAY), fill: 'titleInk' });
-  // The activity's sticker, large near the top (the app's logo for the default template).
-  const sticker = input.template.sticker !== null;
-  const size = sticker ? STICKER : 360;
-  shapes.push({ kind: 'image', src: sticker ? 'sticker' : 'logo', x: (STORY_WIDTH - size) / 2, y: sticker ? 220 : 270, size, framed: !sticker });
+  const scene = input.hasScene === true;
+  if (scene) {
+    // The picture of who sits where takes the sticker's place, framed like the info boxes.
+    shapes.push({ kind: 'photo', x: MARGIN, y: SCENE_Y, w: SCENE_W, h: SCENE_H });
+  } else {
+    // The activity's sticker, large near the top (the app's logo for the default template).
+    const sticker = input.template.sticker !== null;
+    const size = sticker ? STICKER : 360;
+    shapes.push({ kind: 'image', src: sticker ? 'sticker' : 'logo', x: (STORY_WIDTH - size) / 2, y: sticker ? 220 : 270, size, framed: !sticker });
+  }
 
-  let y = 700;
-  for (const line of wrapText(input.title, INNER_W, 3, TITLE_FONT, measure)) {
+  let y = scene ? 770 : 700;
+  for (const line of wrapText(input.title, INNER_W, scene ? 2 : 3, TITLE_FONT, measure)) {
     y += 116;
     shapes.push({ kind: 'text', text: line, x: MARGIN, y, font: TITLE_FONT, fill: 'titleInk' });
   }
@@ -284,6 +298,8 @@ export interface StoryImages {
   logo: CanvasImageSource;
   /** The activity's sticker; null for the default template. */
   sticker: CanvasImageSource | null;
+  /** The picture of the scene, when the story has one. */
+  scene?: CanvasImageSource | null;
 }
 
 /** Replays the shapes on a 1080 × 1920 canvas. */
@@ -320,6 +336,22 @@ export function drawStory(ctx: CanvasRenderingContext2D, shapes: StoryShape[], c
       ctx.textAlign = shape.align ?? 'left';
       ctx.textBaseline = 'alphabetic';
       ctx.fillText(shape.text, shape.x, shape.y);
+    } else if (shape.kind === 'photo') {
+      const radius = 28;
+      ctx.fillStyle = colours.ink;
+      roundRect(ctx, shape.x + 10, shape.y + 10, shape.w, shape.h, radius);
+      ctx.fill();
+      if (images.scene) {
+        ctx.save();
+        roundRect(ctx, shape.x, shape.y, shape.w, shape.h, radius);
+        ctx.clip();
+        ctx.drawImage(images.scene, shape.x, shape.y, shape.w, shape.h);
+        ctx.restore();
+      }
+      roundRect(ctx, shape.x, shape.y, shape.w, shape.h, radius);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = colours.ink;
+      ctx.stroke();
     } else if (shape.kind === 'pattern') {
       drawPattern(ctx, shape.pattern, colours.titleInk);
     } else if (shape.kind === 'icon') {
@@ -377,11 +409,11 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /** The PNG of the story image, drawn once the self-hosted fonts and the images are ready. */
-export async function renderStoryPng(input: StoryInput, logoSrc: string): Promise<Blob> {
+export async function renderStoryPng(input: StoryInput, logoSrc: string, scene: CanvasImageSource | null = null): Promise<Blob> {
   const text = [input.when, input.place, input.area, ...input.names].filter(Boolean).join(' ') || input.title;
   await Promise.all([document.fonts.load(TITLE_FONT, input.title), document.fonts.load(LINE_FONT, text), document.fonts.load(font(700, 38, FONT_BODY), input.footer)]);
   await document.fonts.ready;
-  const [logo, sticker] = await Promise.all([loadImage(logoSrc), input.template.sticker ? loadImage(input.template.sticker) : Promise.resolve(null)]);
+  const [logo, sticker] = await Promise.all([loadImage(logoSrc), input.template.sticker && scene === null ? loadImage(input.template.sticker) : Promise.resolve(null)]);
   const canvas = document.createElement('canvas');
   canvas.width = STORY_WIDTH;
   canvas.height = STORY_HEIGHT;
@@ -391,7 +423,7 @@ export async function renderStoryPng(input: StoryInput, logoSrc: string): Promis
     ctx.font = fontSpec;
     return ctx.measureText(value).width;
   };
-  drawStory(ctx, storyLayout(input, measure), pageColours(input.template), { logo, sticker });
+  drawStory(ctx, storyLayout({ ...input, hasScene: scene !== null }, measure), pageColours(input.template), { logo, sticker, scene });
   return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('story: PNG encode failed'))), 'image/png'));
 }
 
