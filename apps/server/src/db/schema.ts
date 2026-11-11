@@ -84,6 +84,8 @@ export const plans = pgTable(
     budgetPerPerson: integer('budget_per_person'),
     /** How many people the creator expects (2–50), to tell the group how many have not voted yet. */
     groupSize: integer('group_size'),
+    /** The names of the people the creator expects (at most 50, no repeats), to tell who has not voted yet. */
+    memberNames: text('member_names').array().notNull().default(sql`'{}'::text[]`),
     voteDeadline: timestamp('vote_deadline', { withTimezone: true }).notNull(),
     status: text('status').$type<PlanStatus>().notNull().default('open'),
     shareTokenHash: text('share_token_hash').notNull().unique(),

@@ -7,7 +7,8 @@ import { type FormEvent, type ReactNode, useId, useState } from 'react';
 import { type PlanView, type Rsvp, joinPlan, sendRsvp, sendVotes } from '../api/plans-api';
 import { useI18n } from '../i18n/i18n';
 import { errorMessage } from './error-message';
-import { optionsOf } from './plan-format';
+import { nameKey } from '../../../server/src/plans/member-names';
+import { membersNotJoined, optionsOf } from './plan-format';
 import { FormError, OptionRow, RsvpSwitch } from './plan-parts';
 
 const MAX_NAME = 40;
@@ -35,6 +36,8 @@ export function VoteBoard({ plan, token, mode, onChange, onSent }: VoteBoardProp
   const [sent, setSent] = useState(false);
   const voting = mode === 'vote' && plan.can.vote;
   const people = Math.max(1, plan.participants.length);
+  // The expected names nobody has taken yet: a tap fills the name so it matches the creator's list.
+  const free = membersNotJoined(plan);
 
   function toggle(id: string): void {
     setSent(false);
@@ -117,6 +120,24 @@ export function VoteBoard({ plan, token, mode, onChange, onSent }: VoteBoardProp
           data-id="guest-name"
         />
       </label>
+      {!me && free.length > 0 && (
+        <div className="chips chips-wrap" role="group" aria-label={t('plan.pickName')} data-id="guest-name-picks">
+          {free.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="chip"
+              aria-pressed={nameKey(name) === nameKey(option)}
+              onClick={() => {
+                setName(option);
+                setSent(false);
+              }}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
       {mode === 'vote' && section('time', t('plan.timesHeading'), t('plan.multi'))}
       {mode === 'vote' && section('place', t('plan.placesHeading'))}
       {plan.can.rsvp && (

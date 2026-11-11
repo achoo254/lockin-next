@@ -48,6 +48,8 @@ export interface PlanView {
   budgetPerPerson: number | null;
   /** How many people the creator expects, null when not said. */
   groupSize: number | null;
+  /** The names of the people the creator expects, in the order given (empty when none). */
+  memberNames: string[];
   voteDeadline: string;
   /** When the plan turns read-only if it is still open or locked then. */
   readOnlyAt: string;
@@ -114,6 +116,7 @@ export async function buildPlanView(
     area: plan.area,
     budgetPerPerson: plan.budgetPerPerson,
     groupSize: plan.groupSize,
+    memberNames: plan.memberNames,
     voteDeadline: plan.voteDeadline.toISOString(),
     readOnlyAt: readOnlyAt(plan.voteDeadline).toISOString(),
     status: plan.status,

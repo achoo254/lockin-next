@@ -5,7 +5,7 @@
  */
 import type { Activity, Participant, PlanOption, PlanView } from '../../api/plans-api';
 import type { Locale, Translate } from '../../i18n/i18n';
-import { lockedOptions, optionText } from '../plan-format';
+import { lockedOptions, membersNotJoined, optionText } from '../plan-format';
 import { formatVnDateTime, vnInputs } from '../vn-time';
 
 /** Sit = voted the locked time and place; the rest stand outside for the reason of their group. */
@@ -77,13 +77,18 @@ export interface SceneEntry {
   say: string | null;
 }
 
-/** Everyone on the plan, the creator first (they take the first seat), each with a group and a bubble line. */
+/**
+ * Everyone on the plan, the creator first (they take the first seat), each with a group and a bubble line. The names
+ * on the creator's list nobody has joined as yet stand outside with the ones who joined and did not vote.
+ */
 export function buildRoster(plan: PlanView, t: Translate, locale: Locale): SceneEntry[] {
   const ordered = [...plan.participants.filter((person) => person.isCreator), ...plan.participants.filter((person) => !person.isCreator)];
-  return ordered.map((person) => {
+  const people = ordered.map((person): SceneEntry => {
     const classified = classify(person, plan);
     return { id: person.id, name: person.displayName, group: classified.group, say: sceneSay(classified, t, locale) };
   });
+  const absent = membersNotJoined(plan).map((name): SceneEntry => ({ id: `member:${name}`, name, group: 'none', say: t('scene.say.none') }));
+  return [...people, ...absent];
 }
 
 export function groupCounts(roster: SceneEntry[]): Array<{ group: SceneGroup; count: number }> {

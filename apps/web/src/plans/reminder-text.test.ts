@@ -32,3 +32,26 @@ describe('reminder text', () => {
     expect(reminderText(makePlan({ participants: [person('a', 'Linh', [T1], 'going')] }), link, now, t, 'vi')).toContain('mới có 1 người vote');
   });
 });
+
+describe('reminder text with a name list', () => {
+  const names = ['Linh', 'Vy', 'Hùng Béo', 'Tú'];
+
+  it('names who has not voted, matching accents and case, and counts the joined who did not vote', () => {
+    const plan = makePlan({
+      memberNames: names,
+      participants: [person('a', 'linh', [T1], 'going'), person('b', 'hung beo', [], 'going')],
+    });
+    const text = reminderText(plan, link, now, t, 'vi');
+    expect(text).toContain('còn 3 người chưa vote: Vy, Hùng Béo, Tú');
+  });
+
+  it('is all in once every listed name has answered, a not-going counting as an answer', () => {
+    const plan = makePlan({ memberNames: ['Linh', 'Vy'], participants: [person('a', 'Linh', [T1], 'going'), person('b', 'Vy', [], 'no')] });
+    expect(reminderText(plan, link, now, t, 'vi')).toContain('Cả nhóm vote đủ rồi');
+  });
+
+  it('prefers the names over the group size', () => {
+    const plan = makePlan({ groupSize: 9, memberNames: ['Linh', 'Vy'], participants: [person('a', 'Linh', [T1], 'going')] });
+    expect(reminderText(plan, link, now, t, 'vi')).toContain('còn 1 người chưa vote: Vy');
+  });
+});

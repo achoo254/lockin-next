@@ -2,6 +2,7 @@
 import type { PlanOption, PlanView } from '../api/plans-api';
 // One check of map links on both sides: the server refuses what this would not send.
 import { mapsSearchUrl } from '../../../server/src/plans/map-link';
+import { nameKey } from '../../../server/src/plans/member-names';
 import type { Locale, Translate } from '../i18n/i18n';
 import { formatLeft, formatVnDateTime } from './vn-time';
 
@@ -57,14 +58,44 @@ export function kindLeader(options: PlanOption[]): KindLeader {
   return { leaderId: null, tie: leaders.map((option) => option.votes) };
 }
 
-/** The nudge line: how many voted, or how many of the expected group have not yet. */
-export type NudgeLine = { kind: 'voted'; n: number } | { kind: 'left'; k: number } | { kind: 'all' };
+const answered = (person: PlanView['participants'][number]): boolean => person.optionIds.length > 0 || person.rsvp === 'no';
+
+/** The expected people (the creator's name list) nobody of the plan matches by name: they have not even opened the link. */
+export function membersNotJoined(plan: PlanView): string[] {
+  const joined = new Set(plan.participants.map((person) => nameKey(person.displayName)));
+  return plan.memberNames.filter((name) => !joined.has(nameKey(name)));
+}
+
+/** The expected people who have not answered yet: not joined, or joined and not voted. In the order of the list. */
+export function pendingMembers(plan: PlanView): string[] {
+  const done = new Set(plan.participants.filter(answered).map((person) => nameKey(person.displayName)));
+  return plan.memberNames.filter((name) => !done.has(nameKey(name)));
+}
+
+/**
+ * How many people the plan expects: with a name list, everyone on the list plus everyone who joined (counted once by
+ * name); else the group size the creator gave.
+ */
+export function expectedTotal(plan: PlanView): number | null {
+  if (plan.memberNames.length === 0) return plan.groupSize;
+  return new Set([...plan.memberNames, ...plan.participants.map((person) => person.displayName)].map(nameKey)).size;
+}
+
+/**
+ * The nudge line: how many voted, or who (and how many) of the expected group have not yet. With a name list the
+ * names are given; with only a group size, just the count.
+ */
+export type NudgeLine = { kind: 'voted'; n: number } | { kind: 'left'; k: number; names: string[] } | { kind: 'all' };
 
 export function nudgeLine(plan: PlanView): NudgeLine {
   const voted = voterCount(plan);
+  if (plan.memberNames.length > 0) {
+    const names = pendingMembers(plan);
+    return names.length > 0 ? { kind: 'left', k: names.length, names } : { kind: 'all' };
+  }
   if (plan.groupSize === null) return { kind: 'voted', n: voted };
   const left = plan.groupSize - voted;
-  return left > 0 ? { kind: 'left', k: left } : { kind: 'all' };
+  return left > 0 ? { kind: 'left', k: left, names: [] } : { kind: 'all' };
 }
 
 /**
@@ -84,7 +115,7 @@ export function reminderText(plan: PlanView, link: string, now: Date, t: Transla
     .filter((pick): pick is string => pick !== null);
   const lead = picks.length > 0 ? t('nudge.lead', { pick: picks.join(' · ') }) : '';
   const common = { title: plan.title, left, lead, link };
-  if (line.kind === 'left') return t('nudge.text.left', { ...common, k: line.k });
+  if (line.kind === 'left') return t(line.names.length > 0 ? 'nudge.text.names' : 'nudge.text.left', { ...common, k: line.k, names: line.names.join(', ') });
   if (line.kind === 'voted') return t('nudge.text.voted', { ...common, n: line.n });
   return t('nudge.text.all', common);
 }

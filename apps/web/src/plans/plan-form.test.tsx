@@ -18,6 +18,16 @@ function form(overrides: Partial<CreateForm> = {}): CreateForm {
   return { ...initialForm(NOW, 'Minh', t), ...overrides };
 }
 
+describe('buildCreateInput with names', () => {
+  it('sends the names without repeats, and none when the list is empty', () => {
+    const places = [{ key: 'p', label: 'Quán A', mapUrl: null }];
+    const withNames = buildCreateInput(form({ places, members: ['An', 'Bình', 'an'] }), NOW);
+    expect(withNames.ok && withNames.input.memberNames).toEqual(['An', 'Bình']);
+    const none = buildCreateInput(form({ places }), NOW);
+    expect(none.ok && 'memberNames' in none.input).toBe(false);
+  });
+});
+
 describe('buildCreateInput', () => {
   it('starts as coffee with this weekend at 19:00, 24 hours to vote and the account name', () => {
     const start = form();
@@ -156,6 +166,45 @@ describe('the create form', () => {
     } finally {
       api.restore();
     }
+  });
+
+  describe('the saved list of names', () => {
+    const type = (value: string): void => {
+      fireEvent.change(document.querySelector('[data-id=member-input]') as HTMLInputElement, { target: { value } });
+      fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    };
+
+    afterEach(() => window.localStorage.removeItem('lockin.roster'));
+
+    it('adds names split at commas, saves them here, sends them with the plan and starts the next form with them', async () => {
+      const api = stubFetch(() => Response.json({ plan: creatorPlan(), share: { token: 'x', url: 'https://x/k/x' }, manage: null }, { status: 201 }));
+      try {
+        const onCreated = show();
+        type('Linh, Vy,  hùng béo, linh');
+        expect(screen.getByText('3 người')).toBeTruthy();
+        expect(JSON.parse(window.localStorage.getItem('lockin.roster') ?? '[]')).toEqual(['Linh', 'Vy', 'hùng béo']);
+        fireEvent.click(screen.getByRole('button', { name: 'Vy' })); // not in this plan
+        fireEvent.change(document.querySelector('[data-id=place-0]') as HTMLInputElement, { target: { value: 'Quán A' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Lên kèo & lấy link' }));
+        await waitFor(() => expect(onCreated).toHaveBeenCalled());
+        const [call] = api.calls as [Call];
+        expect((call.body as { memberNames: string[] }).memberNames).toEqual(['Linh', 'hùng béo']);
+        // The saved list stays whole for the next plan.
+        cleanup();
+        show();
+        expect(screen.getAllByRole('button', { pressed: true }).map((button) => button.textContent)).toEqual(expect.arrayContaining(['Linh', 'Vy', 'hùng béo']));
+      } finally {
+        api.restore();
+      }
+    });
+
+    it('forgets a name from the saved list and from the plan', () => {
+      window.localStorage.setItem('lockin.roster', JSON.stringify(['Linh', 'Vy']));
+      show();
+      fireEvent.click(screen.getByRole('button', { name: 'Xoá Vy khỏi danh sách đã lưu' }));
+      expect(screen.queryByRole('button', { name: 'Vy' })).toBeNull();
+      expect(JSON.parse(window.localStorage.getItem('lockin.roster') ?? '[]')).toEqual(['Linh']);
+    });
   });
 
   describe('a place box', () => {

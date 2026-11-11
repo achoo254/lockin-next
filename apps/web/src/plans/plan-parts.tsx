@@ -198,7 +198,14 @@ export function NudgeCard({ plan, link }: { plan: PlanView; link: string }): Rea
     line.kind === 'voted' ? t('nudge.voted', { n: line.n }) : line.kind === 'left' ? t('nudge.left', { k: line.k }) : t('nudge.all');
   return (
     <div className="card nudge" data-id="nudge">
-      <strong>{text}</strong>
+      <div>
+        <strong>{text}</strong>
+        {line.kind === 'left' && line.names.length > 0 && (
+          <p className="muted" data-id="nudge-names">
+            {line.names.join(', ')}
+          </p>
+        )}
+      </div>
       <button
         type="button"
         className={copied ? 'btn btn-ghost btn-sm is-done' : 'btn btn-ghost btn-sm'}

@@ -113,6 +113,15 @@ describe('story image with the scene', () => {
     }
   });
 
+  it('puts who has not voted on a last line of the same box, and keeps the box to three lines', () => {
+    const shapes = withScene({ waiting: ['Vy', 'Hùng'], waitingLabel: 'Chưa vote' });
+    expect(texts(shapes)).toEqual(expect.arrayContaining(['Minh, Linh, Tú', 'Chưa vote: Vy, Hùng']));
+    const crowded = withScene({ names: Array.from({ length: 60 }, (_, i) => `Người bạn số ${i}`), waiting: Array.from({ length: 30 }, (_, i) => `Chờ ${i}`), waitingLabel: 'Chưa vote' });
+    for (const shape of crowded) {
+      if (shape.kind === 'rect') expect(shape.y + shape.h).toBeLessThanOrEqual(STORY_HEIGHT);
+    }
+  });
+
   it('is the old layout, sticker included, when there is no scene', () => {
     const shapes = storyLayout(input(), measure);
     expect(shapes.some((shape) => shape.kind === 'photo')).toBe(false);

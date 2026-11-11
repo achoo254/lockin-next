@@ -107,6 +107,17 @@ describe('creating and listing plans', () => {
     expect(await past.json()).toEqual({ error: 'invalid-deadline' });
   });
 
+  it('keeps the names of the people the creator expects, without repeats, and refuses too many or bad ones', async () => {
+    const creator = await signedIn('creator-names');
+    const made = await newPlan(creator, { memberNames: ['Linh', ' Vy ', 'linh', 'Hùng Béo'] });
+    expect(made.plan.memberNames).toEqual(['Linh', 'Vy', 'Hùng Béo']);
+    expect((await newPlan(creator)).plan.memberNames).toEqual([]);
+    for (const memberNames of [Array.from({ length: 51 }, (_, i) => `Bạn ${i}`), ['x'.repeat(41)], ['two\nlines'], ['']]) {
+      const res = await creator.call('/api/plans', { method: 'POST', body: JSON.stringify(planBody(clock, { memberNames })) });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('takes a plan with ten places, each with a full-length Google Maps desktop link', async () => {
     const creator = await signedIn('creator-maps');
     const places = Array.from({ length: 10 }, (_, i) => ({

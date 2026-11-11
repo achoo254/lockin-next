@@ -45,6 +45,7 @@ const PlanViewSchema = z.object({
   area: z.nullable(z.string()),
   budgetPerPerson: z.nullable(z.number()),
   groupSize: z.nullable(z.number()),
+  memberNames: z.array(z.string()),
   voteDeadline: z.string(),
   readOnlyAt: z.string(),
   status: PlanStatusSchema,
@@ -108,6 +109,8 @@ export interface CreatePlanInput {
   area?: string;
   budgetPerPerson?: number;
   groupSize?: number;
+  /** The names of the people expected, to tell who has not voted yet. */
+  memberNames?: string[];
   voteDeadline: string;
   options: Array<{ kind: 'time'; startsAt: string } | { kind: 'place'; label: string; mapUrl?: string }>;
   creatorDisplayName?: string;

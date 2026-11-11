@@ -177,3 +177,16 @@ describe('camera', () => {
     expect(clampZoom(1)).toBe(1);
   });
 });
+
+describe('names on the creator’s list in the scene', () => {
+  it('stands the ones who never joined outside as "not voted", and counts the joined only once', () => {
+    const plan = locked({ memberNames: ['Linh', 'Vy', 'Tú'], participants: [person('a', 'linh', [T1, P1], 'going', true)] });
+    const roster = buildRoster(plan, t, 'vi');
+    expect(roster.map((entry) => [entry.name, entry.group])).toEqual([
+      ['linh', 'sit'],
+      ['Vy', 'none'],
+      ['Tú', 'none'],
+    ]);
+    expect(roster[1]?.say).toBe('Mình chưa vote');
+  });
+});

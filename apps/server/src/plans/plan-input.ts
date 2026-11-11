@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ACTIVITIES, type OptionKind, RSVPS } from '../db/schema';
 import { HttpError } from '../http-error';
 import { isGoogleMapsLink } from './map-link';
+import { MAX_MEMBER_NAMES, uniqueNames } from './member-names';
 import { isTokenShape } from './tokens';
 
 export const MAX_OPTIONS_PER_KIND = 10;
@@ -79,6 +80,12 @@ const planFields = {
   /** How many people the creator expects in the group; null when not said. */
   groupSize: z.number().int().min(2).max(50).nullish().transform((value) => value ?? null),
   voteDeadline: instant,
+  /** The names of the people the creator expects, to tell who has not voted; no repeats (accents and case ignored). */
+  memberNames: z
+    .array(DisplayName)
+    .max(MAX_MEMBER_NAMES)
+    .optional()
+    .transform((names) => uniqueNames(names ?? [])),
 };
 
 export const CreatePlanInput = z.strictObject({
@@ -96,6 +103,7 @@ export const UpdatePlanInput = z.strictObject({
   area: planFields.area.optional(),
   budgetPerPerson: planFields.budgetPerPerson.optional(),
   groupSize: planFields.groupSize.optional(),
+  memberNames: planFields.memberNames.optional(),
   voteDeadline: planFields.voteDeadline.optional(),
   options: Options.optional(),
 });

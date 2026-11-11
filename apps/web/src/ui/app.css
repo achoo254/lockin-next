@@ -631,6 +631,20 @@ button {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.chips-wrap {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+/* a friend's name from the saved list: the chip and a small remove button */
+.member {
+  display: inline-flex;
+  align-items: center;
+}
+.member-x {
+  width: 32px;
+  height: 32px;
+  margin-left: -4px;
+}
 
 /* options: a vote row with its box, label, count and bar */
 .optlist {

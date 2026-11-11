@@ -1,0 +1,1 @@
+ALTER TABLE "plans" ADD COLUMN "member_names" text[] DEFAULT '{}'::text[] NOT NULL;

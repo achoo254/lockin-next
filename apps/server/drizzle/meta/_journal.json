@@ -29,6 +29,13 @@
       "when": 1793612603453,
       "tag": "0003_guest-creators",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794377318660,
+      "tag": "0004_member-names",
+      "breakpoints": true
     }
   ]
 }

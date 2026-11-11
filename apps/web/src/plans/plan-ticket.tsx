@@ -4,7 +4,7 @@ import type { PlanView } from '../api/plans-api';
 import { APP_HOST, BRAND_MARK_SRC, brand } from '../brand';
 import { type Locale, type Translate, useI18n } from '../i18n/i18n';
 import { Icon } from '../ui/icon';
-import { goingNames, lockedOptions, mapHref, optionText } from './plan-format';
+import { goingNames, lockedOptions, mapHref, optionText, pendingMembers } from './plan-format';
 import { PersonChip } from './plan-parts';
 import { PlanScene } from './scene/plan-scene';
 import { sceneContent } from './scene/scene-config';
@@ -60,6 +60,7 @@ export function PlanTicket({ plan, link }: { plan: PlanView; link: string }): Re
   const animate = useStampOnce(plan);
   const { time, place } = lockedOptions(plan);
   const names = goingNames(plan);
+  const waiting = pendingMembers(plan);
   const [copied, flagCopied] = useFlag();
   const [story, setStory] = useState<'idle' | 'busy' | 'saved' | 'failed'>('idle');
   const when = time ? optionText(time, locale) : null;
@@ -85,6 +86,8 @@ export function PlanTicket({ plan, link }: { plan: PlanView; link: string }): Re
       place: placeText,
       area: plan.area,
       names,
+      waiting,
+      waitingLabel: t('story.waiting'),
       nobodyLabel: t('ticket.nobody'),
     };
     try {
@@ -169,6 +172,16 @@ export function PlanTicket({ plan, link }: { plan: PlanView; link: string }): Re
             </ul>
           ) : (
             <p className="muted">{t('ticket.nobody')}</p>
+          )}
+          {waiting.length > 0 && (
+            <>
+              <p className="eyebrow">{t('ticket.waiting', { n: waiting.length })}</p>
+              <ul className="people" data-id="ticket-waiting">
+                {waiting.map((name) => (
+                  <PersonChip key={name} name={name} faded />
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </article>

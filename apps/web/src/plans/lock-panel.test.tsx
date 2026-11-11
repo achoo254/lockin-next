@@ -36,11 +36,11 @@ describe('locking a plan in', () => {
     // The server makes the creator going when the plan is made; they have not voted yet.
     const plan = makePlan({ groupSize: 4, participants: [person('g1', 'Linh', [T1], 'going'), person('me', 'Minh', [], 'going', true), person('g2', 'Tú', [T2], 'no')] });
     expect(goingNames(plan)).toEqual(['Minh', 'Linh']);
-    expect(nudgeLine(plan)).toEqual({ kind: 'left', k: 2 });
+    expect(nudgeLine(plan)).toEqual({ kind: 'left', k: 2, names: [] });
     // Once the creator says no, they leave the going list, and their answer counts as answered.
     const declined = makePlan({ groupSize: 4, participants: plan.participants.map((p) => (p.isCreator ? { ...p, rsvp: 'no' as const } : p)) });
     expect(goingNames(declined)).toEqual(['Linh']);
-    expect(nudgeLine(declined)).toEqual({ kind: 'left', k: 1 });
+    expect(nudgeLine(declined)).toEqual({ kind: 'left', k: 1, names: [] });
   });
 
   it('names only the people who voted, none while nobody has', () => {

@@ -121,7 +121,10 @@ test('a signed-in creator makes a plan, a guest votes without an account, the cr
     expect(attached.y).toBeGreaterThanOrEqual(input.y + input.height - 1);
   }
   await page.setViewportSize({ width: 375, height: 900 });
-  await page.fill('[data-id=form-group-size]', '3');
+  // Two friends on the list (saved in this browser for the next plan): the creator makes three.
+  await page.fill('[data-id=member-input]', 'Linh, Vy');
+  await page.click('[data-id=member-add]');
+  await expect(page.locator('[data-id=members]')).toContainText('2 người');
   await shoot(page, testInfo, '02-create');
   await page.click('[data-id=form-submit]');
   await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
@@ -152,7 +155,8 @@ test('a signed-in creator makes a plan, a guest votes without an account, the cr
   await guest.click('[data-id=rsvp-going]');
   await guest.click('[data-id=vote-submit]');
   await expect(guest.locator('[data-id=vote-sent]')).toBeVisible();
-  await expect(guest.locator('[data-id=nudge]')).toContainText('Còn 2 người chưa vote 👀');
+  await expect(guest.locator('[data-id=nudge]')).toContainText('Còn 1 người chưa vote 👀');
+  await expect(guest.locator('[data-id=nudge-names]')).toHaveText('Vy');
   await expect(guest.locator('[data-id=invite-card]')).toBeVisible();
   await placeOptionsFit(guest);
   await shoot(guest, testInfo, '04-guest-vote');
@@ -172,6 +176,8 @@ test('a signed-in creator makes a plan, a guest votes without an account, the cr
   await expect(page.locator('[data-id=stamp]')).toHaveClass(/is-new/);
   // The creator is going from the start (no RSVP tapped), listed first.
   await expect(page.locator('[data-id=ticket-going] li')).toHaveText([/Người Thử E2E$/, /Linh$/]);
+  // Vy was on the list and never opened the link: the ticket says so.
+  await expect(page.locator('[data-id=ticket-waiting] li')).toHaveText([/Vy$/]);
   await storyImage(page, testInfo, '07-story-cafe');
 
   // The guest sees the ticket after a refresh; the stamp lands once in this browser.

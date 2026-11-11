@@ -9,7 +9,9 @@ import { ACTIVITIES, type Activity, type CreatePlanInput, createPlan } from '../
 import { type Translate, useI18n } from '../i18n/i18n';
 import type { MessageKey } from '../i18n/messages';
 import { isGoogleMapsLink, placeNameFromMapsLink } from '../../../server/src/plans/map-link';
+import { nameKey, uniqueNames } from '../../../server/src/plans/member-names';
 import { Icon } from '../ui/icon';
+import { loadRoster, saveRoster, splitNames } from './member-roster';
 import { errorMessage } from './error-message';
 import { FormError } from './plan-parts';
 import { comingWeekdayAt, formatLeft, formatVnDateTime, vnDayAt, vnInputs, vnInputsToDate } from './vn-time';
@@ -63,6 +65,8 @@ export interface CreateForm {
   budget: string;
   /** Digits only. */
   groupSize: string;
+  /** The friends expected in this plan (from the saved list or typed now), in the order added. */
+  members: string[];
   name: string;
   times: TimeRow[];
   places: PlaceRow[];
@@ -102,8 +106,8 @@ export function quickRow(quick: QuickTime, now: Date): TimeRow | null {
   return at ? { key: rowKey(), ...vnInputs(at), quick } : null;
 }
 
-/** A fresh form: coffee, this weekend's evenings, one empty place, 24 hours to vote. */
-export function initialForm(now: Date, name: string, t: Translate): CreateForm {
+/** A fresh form: coffee, this weekend's evenings, one empty place, 24 hours to vote, the saved friends in. */
+export function initialForm(now: Date, name: string, t: Translate, roster: readonly string[] = []): CreateForm {
   const times = (['sat', 'sun'] as const).flatMap((quick) => quickRow(quick, now) ?? []);
   const later = vnInputs(new Date(now.getTime() + 24 * HOUR));
   return {
@@ -112,6 +116,7 @@ export function initialForm(now: Date, name: string, t: Translate): CreateForm {
     area: '',
     budget: '',
     groupSize: '',
+    members: [...roster],
     name: name.slice(0, 40),
     times,
     places: [{ key: rowKey(), label: '', mapUrl: null }],
@@ -165,6 +170,7 @@ export function buildCreateInput(form: CreateForm, now: Date, nameRequired = fal
       ...(area ? { area } : {}),
       ...(budgetPerPerson !== undefined ? { budgetPerPerson } : {}),
       ...(groupSize !== undefined ? { groupSize } : {}),
+      ...(form.members.length > 0 ? { memberNames: uniqueNames(form.members) } : {}),
       voteDeadline: deadline.toISOString(),
       options,
       ...(name ? { creatorDisplayName: name } : {}),
@@ -188,7 +194,9 @@ interface PlanFormProps {
 export function PlanForm({ defaultName, nameRequired = false, now = () => new Date(), onCreated }: PlanFormProps): ReactNode {
   const { t, locale } = useI18n();
   const ids = useId();
-  const [form, setForm] = useState<CreateForm>(() => initialForm(now(), defaultName, t));
+  const [roster, setRoster] = useState<string[]>(loadRoster);
+  const [form, setForm] = useState<CreateForm>(() => initialForm(now(), defaultName, t, roster));
+  const [newNames, setNewNames] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const update = (patch: Partial<CreateForm>): void => setForm((current) => ({ ...current, ...patch }));
@@ -236,6 +244,27 @@ export function PlanForm({ defaultName, nameRequired = false, now = () => new Da
     // Enter on a typed link attaches it instead of sending the form.
     if (event.key === 'Enter' && settlePlace(row)) event.preventDefault();
   }
+
+  /** The saved list changes (and is remembered); `members` follows: a removed name leaves this plan too. */
+  function changeRoster(next: string[], members: (current: string[]) => string[]): void {
+    setRoster(next);
+    saveRoster(next);
+    setForm((current) => ({ ...current, members: members(current.members) }));
+  }
+
+  function addNames(): void {
+    const added = splitNames(newNames);
+    if (added.length === 0) return;
+    // A name already saved keeps its spelling; it is only put back into this plan.
+    const known = new Map(roster.map((name) => [nameKey(name), name]));
+    const fresh = added.filter((name) => !known.has(nameKey(name)));
+    const picked = added.map((name) => known.get(nameKey(name)) ?? name);
+    changeRoster([...roster, ...fresh].slice(0, 50), (current) => uniqueNames([...current, ...picked]));
+    setNewNames('');
+  }
+
+  const toggleMember = (name: string): void =>
+    setForm((current) => ({ ...current, members: current.members.includes(name) ? current.members.filter((other) => other !== name) : [...current.members, name] }));
 
   const setTime = (key: string, patch: Partial<TimeRow>): void =>
     setForm((current) => ({ ...current, times: current.times.map((row) => (row.key === key ? { ...row, ...patch, quick: null } : row)) }));
@@ -464,6 +493,53 @@ export function PlanForm({ defaultName, nameRequired = false, now = () => new Da
           <input className="in" inputMode="numeric" value={form.groupSize} onChange={(e) => update({ groupSize: digits(e.target.value, 2) })} data-id="form-group-size" />
         </label>
       </div>
+      <fieldset className="group" data-id="members">
+        <legend className="sec">
+          <span className="sec-title">{t('form.members')}</span>
+          <span className="muted">{t('form.membersCount', { n: form.members.length })}</span>
+        </legend>
+        <p className="muted">{t('form.membersHint')}</p>
+        {roster.length > 0 && (
+          <div className="chips chips-wrap" role="group" aria-label={t('form.members')} data-id="member-chips">
+            {roster.map((name) => (
+              <span key={name} className="member">
+                <button type="button" className="chip" aria-pressed={form.members.includes(name)} onClick={() => toggleMember(name)} data-id={`member-${name}`}>
+                  {name}
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn member-x"
+                  aria-label={t('form.memberForget', { name })}
+                  onClick={() => changeRoster(roster.filter((other) => other !== name), (current) => current.filter((other) => other !== name))}
+                >
+                  <Icon name="close" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="row">
+          <input
+            className="in in-sm in-grow"
+            value={newNames}
+            maxLength={200}
+            aria-label={t('form.memberAdd')}
+            placeholder={t('form.memberPlaceholder')}
+            onChange={(e) => setNewNames(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addNames();
+              }
+            }}
+            data-id="member-input"
+          />
+          <button type="button" className="btn btn-ghost btn-sm" disabled={newNames.trim() === ''} onClick={addNames} data-id="member-add">
+            <Icon name="plus" />
+            {t('form.memberAddBtn')}
+          </button>
+        </div>
+      </fieldset>
       <label className="field">
         {t('form.name')}
         <input

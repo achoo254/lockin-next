@@ -35,6 +35,10 @@ export interface StoryInput {
   place: string | null;
   area: string | null;
   names: string[];
+  /** The expected people who have not voted (the plan's name list), shown after the names; empty when none. */
+  waiting?: string[];
+  /** "Chưa vote": starts the waiting line. */
+  waitingLabel?: string;
   nobodyLabel: string;
   /** A picture of the scene (who sits where) is drawn in place of the sticker. Set by renderStoryPng. */
   hasScene?: boolean;
@@ -193,7 +197,13 @@ export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
   };
   if (input.when) box('clock', wrapText(input.when, textW, 2, LINE_FONT, measure));
   if (input.place) box('pin', wrapText(input.area ? `${input.place} · ${input.area}` : input.place, textW, 2, LINE_FONT, measure));
-  box('users', input.names.length > 0 ? fitNames(input.names, textW, 3, LINE_FONT, measure) : [input.nobodyLabel]);
+  // One box, at most three lines: the people going, then the ones still to vote (the box keeps its height either way).
+  const waiting = input.waiting ?? [];
+  const goingLines = input.names.length > 0 ? fitNames(input.names, textW, waiting.length > 0 ? 2 : 3, LINE_FONT, measure) : waiting.length > 0 ? [] : [input.nobodyLabel];
+  const [firstWaiting = '', ...otherWaiting] = waiting;
+  const waitingLines =
+    waiting.length > 0 ? fitNames([`${input.waitingLabel ?? ''}: ${firstWaiting}`, ...otherWaiting], textW, goingLines.length > 0 ? 1 : 3, LINE_FONT, measure) : [];
+  box('users', [...goingLines, ...waitingLines]);
 
   shapes.push({ kind: 'text', text: input.footer, x: MARGIN, y: STORY_HEIGHT - 96, font: font(700, 38, FONT_BODY), fill: 'titleInk' });
   return shapes;
@@ -410,7 +420,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /** The PNG of the story image, drawn once the self-hosted fonts and the images are ready. */
 export async function renderStoryPng(input: StoryInput, logoSrc: string, scene: CanvasImageSource | null = null): Promise<Blob> {
-  const text = [input.when, input.place, input.area, ...input.names].filter(Boolean).join(' ') || input.title;
+  const text = [input.when, input.place, input.area, ...input.names, ...(input.waiting ?? []), input.waitingLabel].filter(Boolean).join(' ') || input.title;
   await Promise.all([document.fonts.load(TITLE_FONT, input.title), document.fonts.load(LINE_FONT, text), document.fonts.load(font(700, 38, FONT_BODY), input.footer)]);
   await document.fonts.ready;
   const [logo, sticker] = await Promise.all([loadImage(logoSrc), input.template.sticker && scene === null ? loadImage(input.template.sticker) : Promise.resolve(null)]);

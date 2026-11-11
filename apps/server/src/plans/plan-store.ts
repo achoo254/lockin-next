@@ -113,6 +113,7 @@ export async function createPlan(
         area: input.area,
         budgetPerPerson: input.budgetPerPerson,
         groupSize: input.groupSize,
+        memberNames: input.memberNames,
         voteDeadline: input.voteDeadline,
         shareTokenHash: hashToken(shareToken),
         shareTokenEnc: box.seal(shareToken, id),

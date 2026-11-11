@@ -8,7 +8,7 @@ import { type PlanOption, type PlanView, cancelPlan, lockPlan, rotateLink } from
 import { useI18n } from '../i18n/i18n';
 import { Icon } from '../ui/icon';
 import { errorMessage } from './error-message';
-import { kindLeader, optionsOf, voterCount } from './plan-format';
+import { expectedTotal, kindLeader, optionsOf, pendingMembers, voterCount } from './plan-format';
 import { FormError, OptionRow, PersonChip } from './plan-parts';
 
 type Confirm = 'rotate' | 'cancel' | null;
@@ -83,7 +83,8 @@ export function LockPanel({ plan, onChange, onRotated }: LockPanelProps): ReactN
     );
   };
 
-  const total = plan.groupSize;
+  const waiting = pendingMembers(plan);
+  const total = expectedTotal(plan);
   const votersLine =
     total === null ? t('lock.voters', { n: voters }) : voters >= total ? t('lock.votersAll', { n: voters, total }) : t('lock.votersOf', { n: voters, total });
 
@@ -105,6 +106,18 @@ export function LockPanel({ plan, onChange, onRotated }: LockPanelProps): ReactN
               />
             ))}
           </ul>
+        )}
+        {waiting.length > 0 && (
+          <>
+            <p className="muted" data-id="lock-waiting">
+              {t('lock.waiting', { n: waiting.length })}
+            </p>
+            <ul className="people">
+              {waiting.map((name) => (
+                <PersonChip key={name} name={name} faded />
+              ))}
+            </ul>
+          </>
         )}
       </section>
       {deadlinePassed && <p className="alert alert-warn">{t('lock.deadlinePassed')}</p>}
