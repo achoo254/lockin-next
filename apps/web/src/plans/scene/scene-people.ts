@@ -47,6 +47,9 @@ function sprite(texture: THREE.Texture, width: number, height: number, order: nu
 export const LABEL_SIZE = { width: 1.38, height: 0.3 } as const;
 export const BUBBLE_SIZE = { width: 1.6, height: 0.47 } as const;
 
+/** Sprites ignore depth, so draw order alone decides who is on top: the selected person's label and bubble sit above everyone else's. */
+export const SPRITE_ORDER = { label: 10, bubble: 11, selectedLabel: 20, selectedBubble: 21 } as const;
+
 export class PeopleFactory {
   private readonly geo = {
     thigh: new THREE.CylinderGeometry(0.058, 0.058, 0.24, 8),
@@ -123,11 +126,11 @@ export class PeopleFactory {
     fill.position.y = 0.015;
     root.add(ring, fill);
 
-    const label = sprite(labelTexture(p, entry.name, colour), LABEL_SIZE.width, LABEL_SIZE.height, 10);
+    const label = sprite(labelTexture(p, entry.name, colour), LABEL_SIZE.width, LABEL_SIZE.height, SPRITE_ORDER.label);
     root.add(label);
     let bubble: THREE.Sprite | null = null;
     if (entry.say) {
-      bubble = sprite(bubbleTexture(p, entry.say, colour), BUBBLE_SIZE.width, BUBBLE_SIZE.height, 11);
+      bubble = sprite(bubbleTexture(p, entry.say, colour), BUBBLE_SIZE.width, BUBBLE_SIZE.height, SPRITE_ORDER.bubble);
       bubble.center.set(0.5, 0.02);
       root.add(bubble);
     }

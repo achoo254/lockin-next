@@ -9,7 +9,7 @@ import { type Entrance, beginEntrance, idle, makeEntrance, stepEntrance } from '
 import { cameraRadius, clampZoom, layoutTables, outsideSpot, placeSitters, type SceneEntry, type SceneGroup, type OutsideGroup } from './scene-model';
 import { readScenePalette, readStatusColours, type ScenePalette } from './scene-palette';
 import { buildFurniture } from './scene-furniture';
-import { BUBBLE_SIZE, LABEL_SIZE, type Person, PeopleFactory } from './scene-people';
+import { BUBBLE_SIZE, LABEL_SIZE, type Person, PeopleFactory, SPRITE_ORDER } from './scene-people';
 import { type Signage, bubbleTexture, loadSceneFonts, skyTexture } from './scene-textures';
 import { type WorldLabels, buildWorld } from './scene-world';
 
@@ -406,8 +406,12 @@ export class SceneController {
       person.ring.scale.setScalar(pulse * (emphasised ? 1.15 : 1));
       (person.fill.material as THREE.MeshBasicMaterial).opacity = emphasised ? 0.28 : 0.1;
       person.label.scale.set(selected ? LABEL_SIZE.width * 1.17 : LABEL_SIZE.width, selected ? LABEL_SIZE.height * 1.17 : LABEL_SIZE.height, 1);
-      person.label.material.opacity = person.dim ? 0.35 : 1;
-      if (person.bubble) person.bubble.material.opacity = person.dim ? 0.3 : 1;
+      person.label.material.opacity = person.dim && !selected ? 0.35 : 1;
+      person.label.renderOrder = selected ? SPRITE_ORDER.selectedLabel : SPRITE_ORDER.label;
+      if (person.bubble) {
+        person.bubble.material.opacity = person.dim && !selected ? 0.3 : 1;
+        person.bubble.renderOrder = selected ? SPRITE_ORDER.selectedBubble : SPRITE_ORDER.bubble;
+      }
     }
   }
 
