@@ -71,7 +71,17 @@ export function PlanScene({ plan, enter }: { plan: PlanView; enter: boolean }): 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signage, labels, locale]);
 
-  if (state === 'failed') return null;
+  // A failed load (a dropped connection while the 3D code came down) leaves the ticket as it is, with a way to try again.
+  if (state === 'failed') {
+    return (
+      <section className="scene scene-failed" aria-label={t('scene.label')} data-id="scene-failed">
+        <p>{t('scene.failed')}</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.location.reload()} data-id="scene-retry">
+          {t('scene.retry')}
+        </button>
+      </section>
+    );
+  }
 
   const selected = roster.find((entry) => entry.id === selectedId) ?? null;
   const counts = groupCounts(roster);

@@ -112,3 +112,15 @@ describe('the scene on a locked plan', () => {
     expect(screen.queryByRole('button', { name: /Ngồi bàn/ })).toBeNull();
   });
 });
+
+describe('when the 3D code cannot load', () => {
+  it('says so and offers a reload, leaving the rest of the ticket alone', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    create.mockRejectedValue(new Error('Failed to fetch dynamically imported module'));
+    show();
+    await waitFor(() => expect(screen.getByText('Chưa dựng được cảnh quán. Kiểm tra mạng rồi thử lại.')).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Tải lại' })).toBeTruthy();
+    expect(document.querySelector('canvas')).toBeNull();
+    error.mockRestore();
+  });
+});

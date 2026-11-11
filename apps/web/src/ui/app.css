@@ -1298,6 +1298,16 @@ button.opt[disabled] {
 }
 
 /* ---------- scene: who sits where on a locked plan ---------- */
+.scene-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  background: var(--scene-sky-glow);
+  color: var(--scene-black);
+  text-align: center;
+}
 .scene-stage {
   position: relative;
   aspect-ratio: 16 / 11;
