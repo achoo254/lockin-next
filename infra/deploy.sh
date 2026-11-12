@@ -76,6 +76,11 @@ release() {
 		echo "working tree is not clean: commit or stash first (git status)" >&2
 		exit 1
 	fi
+	git fetch --quiet origin main
+	if ! git merge-base --is-ancestor HEAD origin/main; then
+		echo "HEAD $(git rev-parse --short HEAD) is not on origin/main: push it first" >&2
+		exit 1
+	fi
 	pnpm lint
 	pnpm typecheck
 	pnpm test
