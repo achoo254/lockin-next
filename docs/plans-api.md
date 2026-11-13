@@ -18,6 +18,12 @@ mã ổn định ở bảng cuối. Mọi request đổi dữ liệu phải có 
 - Giữ dữ liệu ([`retention.ts`](../apps/server/src/plans/retention.ts), dùng chung với trang Quyền riêng tư): kèo còn
   `open`/`locked` 30 ngày sau hạn vote thành `expired`; 90 ngày sau hạn vote kèo bị xoá cùng lựa chọn, người tham
   gia, vote và nhật ký. Máy chủ quét mỗi giờ (bắt đầu từ `server.ts`), và kiểm lại khi đọc một kèo.
+- Tài khoản bị xoá ở IdP (auth-next ADR 0018, `POST /api/idp/account-deleted`,
+  [`account-data.ts`](../apps/server/src/plans/account-data.ts)): xoá ngay tài khoản, phiên và kèo của tài khoản mà
+  chưa khách nào tham gia. Kèo đã có khách thì chuyển cho khách tham gia sớm nhất: hàng người tạo cũ (tên, vote,
+  đi/không) bị xoá, hàng của khách đó thành người tạo, token khách thành token người tạo (`creator_sub` null, link
+  quản lý cũ hết dùng). Lần đầu trình duyệt đó mở link kèo, cookie khách chuyển thành cookie người tạo và link quản lý
+  mới (chính token đó) được lưu lại. Lockin không có API xoá tài khoản riêng.
 
 ## Token và cookie
 
@@ -92,6 +98,10 @@ hỏng) → 400 `bad-request`, không ghi log.
 | POST | `/api/k/:token/join` | khách hoặc người tạo | `{ displayName }` (1–40); gọi lại = đổi tên, giữ nguyên người | `{ plan: PlanView }` | 404, 400, 409 `plan-closed`·`plan-expired`·`guest-conflict`, 429 |
 | POST | `/api/k/:token/votes` | người đã tham gia | `{ optionIds: uuid[] }` (cả bộ; `[]` = rút hết) | `{ plan: PlanView }` | 404, 400 `invalid-option`, 409 `not-joined`·`plan-not-open`·`deadline-passed`·`plan-expired`, 429 |
 | POST | `/api/k/:token/rsvp` | người đã tham gia | `{ rsvp: "going" \| "maybe" \| "no" }` | `{ plan: PlanView }` | 404, 400, 409 `not-joined`·`plan-closed`·`plan-expired`, 429 |
+
+`POST /api/idp/account-deleted` chỉ IdP gọi (server tới server, không Origin, `Content-Type: application/secevent+jwt`,
+body là SET ký ES256): 202 đã xoá, `sub` không có ở đây, hoặc gửi lại; 400 không phải SET; 401 SET sai (`alg`, chữ ký,
+`iss`, `aud`, hết hạn, event); 503 chưa bật đăng nhập, không đọc được khoá IdP hoặc xoá lỗi (IdP gửi lại).
 
 Token sai, sai dạng, đã đổi, hay kèo đã xoá đều trả cùng một `404 {"error":"not-found"}`. `:id` không phải uuid cũng 404.
 

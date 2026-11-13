@@ -1,6 +1,6 @@
 /** /privacy, /terms and /credits in Vietnamese and English. `{app}` is the brand name. */
 import type { ReactNode } from 'react';
-import { APP_HOST } from '../brand';
+import { APP_HOST, IDP_ACCOUNT_DELETE_URL } from '../brand';
 import { type Locale, format, useI18n } from '../i18n/i18n';
 // The server enforces these numbers; the privacy page prints the very same constants.
 import { DELETE_AFTER_DAYS, PLAN_COOKIE_ROOM, READ_ONLY_AFTER_DAYS } from '../../../server/src/plans/retention';
@@ -64,8 +64,18 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
           ],
         },
         {
+          heading: 'Xoá tài khoản',
+          items: [
+            {
+              text: 'Trang tài khoản hoandat.com',
+              href: IDP_ACCOUNT_DELETE_URL,
+              note: 'là nơi duy nhất xoá được tài khoản. Khi bạn xoá ở đó, app xoá ngay tài khoản, phiên đăng nhập và các kèo đã lưu vào tài khoản mà chưa ai khác tham gia. Kèo đã có người tham gia được chuyển cho người tham gia sớm nhất để nhóm vẫn dùng tiếp; tên, lượt vote và trả lời đi hay không của bạn trong kèo đó bị xoá, link quản lý cũ hết dùng.',
+            },
+          ],
+        },
+        {
           heading: 'Liên hệ',
-          paragraphs: ['Muốn hỏi hay yêu cầu xoá dữ liệu (tài khoản, kèo bạn tạo, tên và vote của bạn trong một kèo): nhắn Trang Facebook Hoandat Apps.'],
+          paragraphs: ['Muốn hỏi, hay xoá tên và vote của bạn trong một kèo bạn tham gia như khách (không gắn với tài khoản): nhắn Trang Facebook Hoandat Apps.'],
         },
       ],
     },
@@ -108,8 +118,18 @@ const DOCS: Record<LegalPageKind, Record<Locale, LegalDoc>> = {
           ],
         },
         {
+          heading: 'Deleting your account',
+          items: [
+            {
+              text: 'The hoandat.com account page',
+              href: IDP_ACCOUNT_DELETE_URL,
+              note: 'is the only place an account is deleted. When you delete it there, the app at once deletes the account, its sessions and the plans saved to it that nobody else joined. A plan others joined passes to the person who joined first, so the group can keep using it; your name, votes and answer in it are deleted, and its old manage link stops working.',
+            },
+          ],
+        },
+        {
           heading: 'Contact',
-          paragraphs: ['Questions or data deletion requests (your account, plans you made, your name and votes in a plan): message the Hoandat Apps Facebook Page.'],
+          paragraphs: ['Questions, or deleting your name and votes in a plan you joined as a guest (not tied to an account): message the Hoandat Apps Facebook Page.'],
         },
       ],
     },

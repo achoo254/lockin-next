@@ -1,10 +1,11 @@
 /**
  * Test-only stand-in for auth-next: discovery, an authorize endpoint that consents at once, a token endpoint
  * that checks client_secret_basic, the redirect URI and PKCE before returning an ID token and an access token,
- * and a userinfo endpoint that answers for those access tokens. Used by the server tests and the Playwright
- * E2E; the app itself always talks to the real IdP's endpoints.
+ * a userinfo endpoint that answers for those access tokens, and its signing keys (JWKS) with account-deletion SETs
+ * (auth-next ADR 0018) signed by them. Used by the server tests and the Playwright E2E; the app itself always talks
+ * to the real IdP's endpoints.
  */
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from 'node:crypto';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
@@ -30,6 +31,11 @@ export interface FakeIdp {
   setProfile(profile: Record<string, unknown>): void;
   /** Makes userinfo answer 500 (true) or normally (false). */
   failUserinfo(fail: boolean): void;
+  /**
+   * The SET the IdP posts when `sub`'s account is deleted, for the receiver `audience` (`stranger`: signed with a key
+   * the IdP never published). `claims` adds or overrides claims (`aud`, `exp`, `events`…), `typ` the header's.
+   */
+  accountDeletedToken(sub: string, audience: string, options?: { claims?: Record<string, unknown>; how?: 'valid' | 'stranger'; typ?: string }): string;
   close(): Promise<void>;
 }
 
@@ -51,9 +57,22 @@ export async function startFakeIdp(options: FakeIdpOptions): Promise<FakeIdp> {
   let profile = options.profile ?? {};
   let userinfoFails = false;
   let issuer = '';
+  const key = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const stranger = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const KID = 'fake-key-1';
 
   app.get('/.well-known/openid-configuration', (_req, res) => {
-    res.json({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, userinfo_endpoint: `${issuer}/me` });
+    res.json({
+      issuer,
+      authorization_endpoint: `${issuer}/authorize`,
+      token_endpoint: `${issuer}/token`,
+      userinfo_endpoint: `${issuer}/me`,
+      jwks_uri: `${issuer}/jwks`,
+    });
+  });
+
+  app.get('/jwks', (_req, res) => {
+    res.json({ keys: [{ ...key.publicKey.export({ format: 'jwk' }), kid: KID, alg: 'ES256', use: 'sig' }] });
   });
 
   app.get('/authorize', (req, res) => {
@@ -136,6 +155,15 @@ export async function startFakeIdp(options: FakeIdpOptions): Promise<FakeIdp> {
     },
     failUserinfo: (fail) => {
       userinfoFails = fail;
+    },
+    accountDeletedToken: (deleted, audience, { claims = {}, how = 'valid', typ = 'secevent+jwt' } = {}) => {
+      const now = Math.floor(Date.now() / 1000);
+      const events = { 'urn:hoandat:auth:event:account.deleted': {} };
+      const payload = { iss: issuer, aud: audience, sub: deleted, iat: now, exp: now + 600, jti: randomUUID(), toe: now, events, ...claims };
+      const head = b64url(JSON.stringify({ alg: 'ES256', kid: KID, typ }));
+      const body = b64url(JSON.stringify(payload));
+      const signer = how === 'valid' ? key.privateKey : stranger.privateKey;
+      return `${head}.${body}.${b64url(sign('sha256', Buffer.from(`${head}.${body}`), { key: signer, dsaEncoding: 'ieee-p1363' }))}`;
     },
     close: () => new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve()))),
   };

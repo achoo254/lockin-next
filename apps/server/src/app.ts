@@ -1,6 +1,7 @@
 import express, { type ErrorRequestHandler, type Express } from 'express';
 import helmet from 'helmet';
 import { sql } from 'drizzle-orm';
+import { accountDeletedRoute } from './auth/account-deleted';
 import { authRoutes } from './auth/auth-routes';
 import { requireSameOrigin } from './auth/origin-check';
 import type { ServerConfig } from './config';
@@ -37,6 +38,8 @@ export function createApp({ config, db, now = () => new Date(), loadTemplate = d
 
   app.use(ogPageRoutes({ config, db, now, loadTemplate }));
 
+  // The IdP's account-deletion notice comes server to server, without an Origin: ahead of the same-origin check.
+  app.use(accountDeletedRoute({ config, db, now }));
   app.use(requireSameOrigin(config.publicOrigin));
   // 32 KB: a plan with ten long Google Maps links (desktop links run to a couple of KB each) fits; nginx allows 48k.
   app.use(express.json({ limit: '32kb' }));

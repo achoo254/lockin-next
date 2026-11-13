@@ -20,6 +20,7 @@ import {
   type Requester,
   findParticipantId,
   findPlanByShareToken,
+  isCreatorToken,
   isPlanCreator,
   joinPlan,
   mergeGuestIntoCreator,
@@ -28,6 +29,7 @@ import {
   setVotes,
 } from './plan-store';
 import { type PlanRoutesOptions, creatorLinks, keepCreatorCookie } from './plan-routes';
+import { sealHandedOverToken } from './account-data';
 import { buildPlanView } from './plan-view';
 import { putGuestCookie } from './plan-cookie-room';
 import { clearPlanCookie, isTokenShape, newToken, readCreatorToken, readGuestToken } from './tokens';
@@ -59,12 +61,20 @@ export function guestRoutes({ config, db, now, box }: PlanRoutesOptions): Router
   /** The plan of the link (retention applied) and who is asking. */
   const resolve = async (req: Request, res: Response, at: Date): Promise<{ token: string; plan: PlanRow; requester: Requester; isCreator: boolean }> => {
     const token = shareTokenParam(req);
-    const plan = await findPlanByShareToken(db, token, at);
+    let plan = await findPlanByShareToken(db, token, at);
     if (!plan) throw notFound();
     const sub = await findAccountSub(req, config, db, at);
-    const creatorToken = readCreatorToken(req, config, plan.id);
+    let creatorToken = readCreatorToken(req, config, plan.id);
+    let guestToken = readGuestToken(req, config, plan.id);
+    if (!isPlanCreator(plan, { sub, creatorToken }) && isCreatorToken(plan, guestToken)) {
+      // The plan was handed to this guest (its creator's account was deleted, account-data.ts): the guest token is now
+      // the creator token, so it moves from the guest cookie to the creator cookie (set by `answer`).
+      creatorToken = guestToken;
+      guestToken = null;
+      clearPlanCookie(res, config, 'g', plan.id);
+      if (creatorToken !== null) plan = await sealHandedOverToken(db, plan, creatorToken, box);
+    }
     const isCreator = isPlanCreator(plan, { sub, creatorToken });
-    const guestToken = readGuestToken(req, config, plan.id);
     if (isCreator && guestToken !== null) {
       await mergeGuestIntoCreator(db, plan.id, guestToken, at);
       clearPlanCookie(res, config, 'g', plan.id);

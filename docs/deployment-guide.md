@@ -54,6 +54,8 @@ Thiếu biến bắt buộc hay sai dạng thì server từ chối khởi độn
 
 1. **IdP:** trên `auth-next` đặt `LOCKIN_WEB_CLIENT_SECRET` (client `lockin-web`, redirect
    `https://lockin.hoandat.com/auth/callback`) rồi deploy lại IdP. Việc này thuộc repo `auth-next`.
+   Thêm `https://lockin.hoandat.com/api/idp/account-deleted` vào `ACCOUNT_DELETED_URLS` của auth-next để tài khoản
+   xoá ở IdP thì dữ liệu ở Lockin bị xoá theo (ADR 0018; nginx đã chuyển `/api/` sang server, không cần route riêng).
 2. **DNS:** bản ghi `A` `lockin.hoandat.com` **proxied** trỏ về `<SERVER_65_IP>`. Kiểm:
    `dig +short A lockin.hoandat.com @1.1.1.1` trả IP của Cloudflare.
 3. **RAM và cổng:** đo `free -m` trước khi cài (ghi vào plan); kiểm cổng như mục Kiến trúc chạy.

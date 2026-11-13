@@ -36,8 +36,10 @@ const DiscoverySchema = z.object({
   authorization_endpoint: z.url(),
   token_endpoint: z.url(),
   userinfo_endpoint: z.url().optional(),
+  /** The IdP's signing keys, read only to check its account-deletion notices (auth/account-deleted.ts). */
+  jwks_uri: z.url().optional(),
 });
-type Discovery = z.infer<typeof DiscoverySchema>;
+export type Discovery = z.infer<typeof DiscoverySchema>;
 
 const TokenResponseSchema = z.object({ id_token: z.string().min(1), access_token: z.string().min(1).optional() });
 
@@ -48,7 +50,7 @@ export interface AuthRoutesOptions {
 }
 
 /** The IdP's discovery document, cached for an hour. */
-function discoveryClient(auth: AuthConfig): () => Promise<Discovery> {
+export function discoveryClient(auth: AuthConfig): () => Promise<Discovery> {
   let cached: { at: number; doc: Discovery } | null = null;
   return async () => {
     if (cached && Date.now() - cached.at < DISCOVERY_TTL_MS) return cached.doc;
