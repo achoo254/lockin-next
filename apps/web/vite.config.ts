@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { brandAssets } from './vite-brand.ts';
+import { staticPages } from './vite-static-pages.ts';
 
 /**
  * The API in dev (apps/server, `pnpm dev`); production puts nginx in front of both. Plan links (/k/<token>) go to
@@ -11,7 +12,7 @@ const API = 'http://127.0.0.1:5310';
 const PROXY = { '/api': API, '/auth': API, '/healthz': API, '/k/': API, '/m/': API };
 
 export default defineConfig({
-  plugins: [react(), brandAssets()],
+  plugins: [react(), brandAssets(), staticPages()],
   server: { port: 5311, strictPort: true, proxy: PROXY },
   preview: { port: 5311, strictPort: true, proxy: PROXY },
   build: {

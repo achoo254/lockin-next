@@ -6,5 +6,5 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vite-brand.ts", "vitest.config.ts", "index-html.test.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "vite-brand.ts", "vite-static-pages.ts", "vite-static-pages.test.ts", "vitest.config.ts", "index-html.test.ts"]
 }
