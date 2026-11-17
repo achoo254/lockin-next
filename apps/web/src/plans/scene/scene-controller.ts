@@ -257,7 +257,11 @@ export class SceneController {
     return this.renderer.domElement;
   }
 
-  dispose(): void {
+  /**
+   * Frees the scene. `releaseContext` false keeps the canvas's WebGL context alive: for a scene that is thrown away
+   * before it was ever shown while another one is built on the same canvas (React's strict mode mounts twice in dev).
+   */
+  dispose(releaseContext = true): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     for (const cleanup of this.cleanups) cleanup();
@@ -265,7 +269,7 @@ export class SceneController {
     this.scene.background = null;
     disposeTree(this.scene);
     this.renderer.dispose();
-    this.renderer.forceContextLoss();
+    if (releaseContext) this.renderer.forceContextLoss();
   }
 
   /* ---------- picking and highlight ---------- */

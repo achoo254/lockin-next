@@ -96,11 +96,23 @@ describe('the scene on a locked plan', () => {
     expect(list?.textContent).toContain('Dũng: Lệch quán');
   });
 
-  it('frees the scene when it goes away', async () => {
+  it('frees the scene when it goes away, and its WebGL context with it', async () => {
     show();
     await screen.findByRole('button', { name: /Ngồi bàn/ });
     cleanup();
-    expect(controller.dispose).toHaveBeenCalled();
+    expect(controller.dispose).toHaveBeenCalledWith();
+  });
+
+  it('leaves the WebGL context alone when the scene it built is no longer wanted (a second one may draw on the same canvas)', async () => {
+    let finish: (value: SceneController) => void = () => undefined;
+    create.mockReturnValueOnce(new Promise<SceneController>((resolve) => (finish = resolve)));
+    show();
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    // The page goes away while the scene is still being built.
+    cleanup();
+    const late = { ...controller, dispose: vi.fn() };
+    finish(late as unknown as SceneController);
+    await waitFor(() => expect(late.dispose).toHaveBeenCalledWith(false));
   });
 
   it('shows nothing at all when the scene cannot be created (no WebGL)', async () => {

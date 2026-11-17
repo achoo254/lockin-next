@@ -50,7 +50,8 @@ export function PlanScene({ plan, enter }: { plan: PlanView; enter: boolean }): 
       )
       .then((controller) => {
         if (cancelled) {
-          controller.dispose();
+          // Another scene may already be drawing on this canvas (strict mode in dev): leave its WebGL context alone.
+          controller.dispose(false);
           return;
         }
         created = controller;
