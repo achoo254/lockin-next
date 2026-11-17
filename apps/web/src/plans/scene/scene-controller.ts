@@ -35,6 +35,9 @@ const ELEVATION_MAX = 0.7;
 const DEFAULT_ELEVATION = 0.42;
 const TAP_SLOP = 6;
 const TARGET = new THREE.Vector3(0, 0.9, -1.7);
+/** The arena has nobody standing in the street, so the camera comes closer and looks at the lane and the stands. */
+const ARENA_TARGET = new THREE.Vector3(0, 0.9, -3.4);
+const ARENA_DISTANCE = 0.68;
 
 const sampleText = (config: SceneConfig): string => `${config.signage.placeName} ${config.signage.area ?? ''} ${config.roster.map((entry) => `${entry.name} ${entry.say ?? ''}`).join(' ')} ${config.labels.timeBoard} ${config.labels.placeBoard}`;
 
@@ -101,7 +104,7 @@ export class SceneController {
     this.scene.background = skyTexture(palette);
     this.scene.fog = new THREE.Fog(palette.fog, 20, 44);
     this.addLights(palette);
-    this.scene.add(config.theme === 'arena' ? buildArena(this.kit, config.signage, config.labels) : buildWorld(this.kit, config.signage, config.labels, this.makeGlass), this.crowd);
+    this.scene.add(config.theme === 'arena' ? buildArena(this.kit, config.signage) : buildWorld(this.kit, config.signage, config.labels, this.makeGlass), this.crowd);
     this.populate();
     if (config.interactive) this.listen();
     this.resize();
@@ -441,10 +444,12 @@ export class SceneController {
   private placeCamera(): void {
     if (!this.touched) this.autoSway = this.config.reducedMotion ? 0 : Math.sin(((performance.now() - this.startedAt) / 1000) * 0.25) * 0.07;
     else this.autoSway *= 0.98;
-    const radius = cameraRadius(this.camera.aspect) * this.zoom;
+    const arena = this.config.theme === 'arena';
+    const target = arena ? ARENA_TARGET : TARGET;
+    const radius = cameraRadius(this.camera.aspect) * this.zoom * (arena ? ARENA_DISTANCE : 1);
     const a = this.azimuth + this.autoSway;
     const e = this.elevation;
-    this.camera.position.set(TARGET.x + radius * Math.sin(a) * Math.cos(e), TARGET.y + radius * Math.sin(e), TARGET.z + radius * Math.cos(a) * Math.cos(e));
-    this.camera.lookAt(TARGET);
+    this.camera.position.set(target.x + radius * Math.sin(a) * Math.cos(e), target.y + radius * Math.sin(e), target.z + radius * Math.cos(a) * Math.cos(e));
+    this.camera.lookAt(target);
   }
 }

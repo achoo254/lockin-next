@@ -214,20 +214,30 @@ describe('the arena of a solo game plan', () => {
     expect(roster.every((entry) => entry.say === null)).toBe(true);
   });
 
-  it('takes the first ten who are going as five against five, and the rest by their vote: stands, or standing outside', () => {
+  it('takes the first ten who are going as five against five, and everyone else watches whatever they voted or said', () => {
     const people = Array.from({ length: 10 }, (_, i) => going(`p${i}`, `Người ${i}`, [T1, P1], i === 0));
-    const extra = [going('s1', 'Khán 1'), person('s2', 'Khán 2', [T2, P1], 'going'), person('s3', 'Khán 3', [], 'maybe'), person('s4', 'Khán 4', [T1, P1], 'maybe')];
+    const extra = [
+      going('s1', 'Khán 1'),
+      person('s2', 'Khán 2', [T2, P1], 'going'),
+      person('s3', 'Khán 3', [], 'maybe'),
+      person('s4', 'Khán 4', [T1, P1], 'maybe'),
+      person('s5', 'Khán 5', [], 'no'),
+      person('s6', 'Khán 6', [T1, P1]),
+      person('s7', 'Khán 7', []),
+    ];
     const roster = buildRoster(solo([...people, ...extra]), t, 'vi');
     const players = roster.filter((entry) => entry.group === 'duel');
     expect(players).toHaveLength(10);
     expect(players.filter((entry) => entry.team === 'blue')).toHaveLength(5);
     expect(players.filter((entry) => entry.team === 'red')).toHaveLength(5);
-    expect(roster.filter((entry) => entry.group !== 'duel').map((entry) => [entry.name, entry.group])).toEqual([
-      ['Khán 1', 'sit'],
-      ['Khán 2', 'time'],
-      ['Khán 3', 'none'],
-      ['Khán 4', 'sit'],
-    ]);
+    const rest = roster.filter((entry) => entry.group !== 'duel');
+    expect(rest.map((entry) => entry.name)).toEqual(['Khán 1', 'Khán 2', 'Khán 3', 'Khán 4', 'Khán 5', 'Khán 6', 'Khán 7']);
+    expect(rest.every((entry) => entry.group === 'sit' && entry.say === null)).toBe(true);
+  });
+
+  it('puts the names on the creator’s list who have not joined yet in the stands too', () => {
+    const plan = { ...solo([going('m', 'Minh', [], true)]), memberNames: ['Minh', 'Khánh', 'Trung'] };
+    expect(buildRoster(plan, t, 'vi').map((entry) => [entry.name, entry.group])).toEqual([['Minh', 'duel'], ['Khánh', 'sit'], ['Trung', 'sit']]);
   });
 
   it('does not make a player of someone who is not going, and does not mark players of a plan without rules', () => {
@@ -238,7 +248,7 @@ describe('the arena of a solo game plan', () => {
 
   it('draws the arena in its own words', () => {
     const say = sceneTranslate(t, 'arena');
-    expect(say('scene.group.sit')).toBe('Khán đài');
+    expect(say('scene.group.sit')).toBe('Khán giả');
     expect(say('scene.say.noPlace')).toBe('Mình chưa chọn chỗ');
     expect(say('scene.group.none')).toBe(t('scene.group.none'));
     expect(sceneTranslate(t, 'hall')('scene.group.sit')).toBe('Ngồi bàn');

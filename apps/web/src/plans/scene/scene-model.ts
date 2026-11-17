@@ -108,7 +108,8 @@ export function duelPlayers(plan: Pick<PlanView, 'participants'>): Array<{ id: s
 
 /**
  * Everyone on the plan, the creator first (they take the first seat), each with a group and a bubble line. The names
- * on the creator's list nobody has joined as yet stand outside with the ones who joined and did not vote.
+ * on the creator's list nobody has joined as yet stand outside with the ones who joined and did not vote. In a solo
+ * game plan only the players have a group of their own: everyone else is in the stands.
  */
 export function buildRoster(plan: PlanView, t: Translate, locale: Locale): SceneEntry[] {
   const ordered = [...plan.participants.filter((person) => person.isCreator), ...plan.participants.filter((person) => !person.isCreator)];
@@ -116,10 +117,14 @@ export function buildRoster(plan: PlanView, t: Translate, locale: Locale): Scene
   const people = ordered.map((person): SceneEntry => {
     const team = players.get(person.id);
     if (team) return { id: person.id, name: person.displayName, group: 'duel', say: null, team };
+    // In a game everyone who does not play watches, whatever they voted or said: not going, maybe, nothing yet.
+    if (plan.duel) return { id: person.id, name: person.displayName, group: 'sit', say: null };
     const classified = classify(person, plan);
     return { id: person.id, name: person.displayName, group: classified.group, say: sceneSay(classified, t, locale) };
   });
-  const absent = membersNotJoined(plan).map((name): SceneEntry => ({ id: `member:${name}`, name, group: 'none', say: t('scene.say.none') }));
+  const absent = membersNotJoined(plan).map(
+    (name): SceneEntry => (plan.duel ? { id: `member:${name}`, name, group: 'sit', say: null } : { id: `member:${name}`, name, group: 'none', say: t('scene.say.none') }),
+  );
   return [...people, ...absent];
 }
 

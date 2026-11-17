@@ -143,9 +143,10 @@ export function VoteBoard({ plan, token, mode, onChange, onSent }: VoteBoardProp
       {plan.can.rsvp && (
         <div className="group">
           <p className="sec">
-            <span className="sec-title">{t('plan.rsvpHeading')}</span>
+            <span className="sec-title">{plan.duel ? t('duel.rsvpHeading') : t('plan.rsvpHeading')}</span>
           </p>
           <RsvpSwitch
+            duel={plan.duel !== null}
             value={rsvp}
             disabled={busy}
             onChange={(next) => {

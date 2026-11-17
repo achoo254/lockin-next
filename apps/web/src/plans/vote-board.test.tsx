@@ -101,3 +101,42 @@ describe('the vote board', () => {
     expect(screen.getByRole('button', { name: 'Gửi' })).not.toBeNull();
   });
 });
+
+describe('the vote board of a solo game plan', () => {
+  const duelPlan = (rsvp: 'going' | 'maybe' | 'no' | null): PlanView =>
+    makePlan({
+      activity: 'solo_game',
+      duel: { game: 'lien_quan', bestOf: 1, winCondition: 'first_blood', rules: [], customRules: [], stake: null },
+      viewer: { isCreator: false, participantId: 'me' },
+      participants: [person('me', 'Linh', [], rsvp)],
+    });
+
+  it('asks only whether one plays or watches: "Đi" or "Khán giả", no maybe and no "not going"', () => {
+    show(duelPlan(null), 'rsvp');
+    expect(screen.getByText('Bạn ra sân hay xem?')).not.toBeNull();
+    const buttons = Array.from(document.querySelectorAll('[data-id=rsvp] button')).map((button) => button.textContent);
+    expect(buttons).toEqual(['Đi', 'Khán giả']);
+    expect(document.querySelector('[data-id=rsvp-maybe]')).toBeNull();
+    expect(document.querySelector('[data-id=rsvp-no]')).toBeNull();
+  });
+
+  it('shows "Khán giả" for whoever had said maybe or no, and "Đi" for going', () => {
+    for (const [rsvp, pressed] of [['going', 'rsvp-going'], ['maybe', 'rsvp-spectator'], ['no', 'rsvp-spectator']] as const) {
+      show(duelPlan(rsvp), 'rsvp');
+      expect(document.querySelector(`[data-id=${pressed}]`)?.getAttribute('aria-pressed')).toBe('true');
+      cleanup();
+    }
+  });
+
+  it('sends a spectator as maybe, which the server already knows', async () => {
+    const api = stubFetch(() => ({ plan: duelPlan('maybe') }));
+    try {
+      show(duelPlan('going'), 'rsvp');
+      fireEvent.click(document.querySelector('[data-id=rsvp-spectator]') as HTMLElement);
+      fireEvent.click(document.querySelector('[data-id=vote-submit]') as HTMLElement);
+      await waitFor(() => expect(api.calls.some((call) => call.path.endsWith('/rsvp') && JSON.stringify(call.body) === '{"rsvp":"maybe"}')).toBe(true));
+    } finally {
+      api.restore();
+    }
+  });
+});

@@ -55,7 +55,6 @@ test('a solo game plan: the rules form, the rules card, and the arena of a locke
   await page.fill('[data-id=duel-stake-input]', 'Thua bao ly trà sữa');
   await page.fill('[data-id=place-0]', 'Phòng custom Tốc Chiến');
   await page.fill('[data-id=form-area]', 'Online');
-  await page.fill('[data-id=member-input]', 'Khán giả');
   await page.screenshot({ path: testInfo.outputPath('01-form.png'), fullPage: true });
   await page.click('[data-id=form-submit]');
   await page.waitForURL(/\/plans\/[0-9a-f-]{36}$/);
@@ -106,9 +105,10 @@ test('a solo game plan: the rules form, the rules card, and the arena of a locke
     return;
   }
   await expect(page.locator('[data-id=scene-group-duel]')).toContainText('10');
-  await expect(page.locator('[data-id=scene-group-sit]')).toContainText('2');
-  await expect(page.locator('[data-id=scene-group-time]')).toContainText('1');
-  await expect(page.locator('[data-id=scene-group-no]')).toContainText('1');
+  // Everyone who does not play watches: the two going after the tenth, the one with another time, the one not going.
+  await expect(page.locator('[data-id=scene-group-sit]')).toContainText('4');
+  await expect(page.locator('[data-id=scene-group-time]')).toHaveCount(0);
+  await expect(page.locator('[data-id=scene-group-no]')).toHaveCount(0);
   // The walk-in of the spectators is over.
   await page.waitForTimeout(4000);
   await page.locator('[data-id=scene]').screenshot({ path: testInfo.outputPath('03-arena.png') });

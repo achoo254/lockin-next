@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { type Kit } from './scene-kit';
 import { STAND_COLUMNS, type StandLayout, standRow } from './scene-model';
 import { type Signage, arenaBannerTexture } from './scene-textures';
-import { type WorldLabels, board, street } from './scene-world';
+import { street } from './scene-world';
 
 const LANE_Z = -2.6;
 const LANE_DEPTH = 2.0;
@@ -49,15 +49,13 @@ function tower(kit: Kit, root: THREE.Group, x: number, colour: string): void {
   root.add(group);
 }
 
-export function buildArena(kit: Kit, signage: Signage, labels: WorldLabels): THREE.Group {
+export function buildArena(kit: Kit, signage: Signage): THREE.Group {
   const { p } = kit;
   const root = new THREE.Group();
   floor(kit, root);
   walls(kit, root, signage);
   tower(kit, root, -TOWER_X, p.arenaBlue);
   tower(kit, root, TOWER_X, p.arenaRed);
-  board(kit, root, -4.6, 0.35, labels.timeBoard, 'clock');
-  board(kit, root, 4.3, 0.35, labels.placeBoard, 'pin');
   return root;
 }
 

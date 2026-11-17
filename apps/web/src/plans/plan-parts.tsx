@@ -107,9 +107,27 @@ export function OptionRow({ option, area, share, pressed, win, note, onClick, ro
   );
 }
 
-/** The going / maybe / no switch. */
-export function RsvpSwitch({ value, onChange, disabled }: { value: Rsvp | null; onChange: (rsvp: Rsvp) => void; disabled?: boolean }): ReactNode {
+/**
+ * The going / maybe / no switch. In a solo game plan there are only two answers: going (a player) or a spectator
+ * (stored as "maybe"; "no" and "maybe" both show as spectator), because everyone who does not play watches.
+ */
+export function RsvpSwitch({ value, onChange, disabled, duel = false }: { value: Rsvp | null; onChange: (rsvp: Rsvp) => void; disabled?: boolean; duel?: boolean }): ReactNode {
   const { t } = useI18n();
+  if (duel) {
+    const answers = [
+      { id: 'going', rsvp: 'going', pressed: value === 'going', label: t('duel.rsvp.going') },
+      { id: 'spectator', rsvp: 'maybe', pressed: value === 'maybe' || value === 'no', label: t('duel.rsvp.spectator') },
+    ] as const;
+    return (
+      <div className="seg" role="group" aria-label={t('duel.rsvpHeading')} data-id="rsvp">
+        {answers.map((answer) => (
+          <button key={answer.id} type="button" aria-pressed={answer.pressed} disabled={disabled} onClick={() => onChange(answer.rsvp)} data-id={`rsvp-${answer.id}`}>
+            {answer.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="seg" role="group" aria-label={t('plan.rsvpHeading')} data-id="rsvp">
       {RSVPS.map((rsvp) => (
