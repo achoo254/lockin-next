@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIVITIES } from '../api/plans-api';
-import { type Measure, SCENE_H, SCENE_W, type StoryInput, STORY_HEIGHT, STORY_WIDTH, fitNames, storyLayout, wrapText } from './story-image';
+import { ACTIVITIES, type Duel } from '../api/plans-api';
+import { translator } from '../i18n/i18n';
+import { duelStoryLines } from './duel-story';
+import { DUEL_SCENE_H, type Measure, SCENE_H, SCENE_W, type StoryInput, STORY_HEIGHT, STORY_WIDTH, fitNames, storyLayout, wrapText } from './story-image';
 import { DEFAULT_TEMPLATE, STORY_TEMPLATES, storyTemplate } from './story-templates';
 
 const stickerFiles = Object.keys(import.meta.glob('../../public/stickers/*.webp')).map((file) => file.replace('../../public', ''));
@@ -145,5 +147,51 @@ describe('story templates', () => {
     expect(light.sort()).toEqual(['movie', 'party']);
     expect(storyTemplate('movie').bgToken).toBe('--story-movie');
     expect(storyTemplate('party').bgToken).toBe('--story-party');
+  });
+});
+
+describe('the rules box of a solo game story', () => {
+  const duel: Duel = {
+    game: 'lmht',
+    bestOf: 3,
+    winCondition: 'first_tower',
+    rules: ['basic_attacks_only', 'no_bush', 'no_minion_farm', 'no_heal', 'no_recall', 'same_hero'],
+    customRules: ['Không mua đồ 3 phút đầu'],
+    stake: 'Thua bao ly trà sữa',
+  };
+  const t = translator('vi');
+
+  it('has the header, how a round is won, as many rules as fit, "+N luật nữa" for the rest, and the stake last: six lines at most', () => {
+    const lines = duelStoryLines(duel, t);
+    expect(lines).toEqual([
+      'Liên Minh Huyền Thoại · Bo3',
+      'Ai phá trụ đầu tiên thắng',
+      t('duel.rule.basic_attacks_only'),
+      t('duel.rule.no_bush'),
+      '+5 luật nữa',
+      'Cược: Thua bao ly trà sữa',
+    ]);
+    expect(duelStoryLines({ ...duel, stake: null }, t)).toHaveLength(6);
+    expect(duelStoryLines({ ...duel, rules: ['no_bush'], customRules: [], stake: null }, t)).toEqual([lines[0], lines[1], t('duel.rule.no_bush')]);
+  });
+
+  it('draws the box with the rules and keeps everything in the image, with the picture, one-line boxes and the footer', () => {
+    const shapes = storyLayout(input({ template: storyTemplate('solo_game'), title: 'Solo Liên Quân rất dài '.repeat(6), names: Array.from({ length: 40 }, (_, i) => `Người ${i}`), waiting: ['An'], waitingLabel: 'Chưa vote', rules: duelStoryLines(duel, t), hasScene: true }), measure);
+    expect(texts(shapes)).toContain(t('duel.rule.no_bush'));
+    expect(shapes.some((shape) => shape.kind === 'icon' && shape.icon === 'swords')).toBe(true);
+    expect(shapes.filter((shape) => shape.kind === 'text' && shape.font.includes('112px'))).toHaveLength(1);
+    const photo = shapes.find((shape) => shape.kind === 'photo');
+    expect(photo && photo.kind === 'photo' ? photo.h : 0).toBe(DUEL_SCENE_H);
+    const footer = shapes.find((shape) => shape.kind === 'text' && shape.text === 'Chốt kèo trên lockin.hoandat.com');
+    const lastBoxBottom = Math.max(...shapes.flatMap((shape) => (shape.kind === 'rect' && shape.fill === 'paper' ? [shape.y + shape.h + (shape.shadow ?? 0)] : [])));
+    expect(lastBoxBottom).toBeLessThan(footer && footer.kind === 'text' ? footer.y - 38 : 0);
+    for (const shape of shapes) if (shape.kind === 'rect') expect(shape.y + shape.h).toBeLessThanOrEqual(STORY_HEIGHT);
+  });
+
+  it('also fits with the sticker when the scene could not be drawn, and leaves other stories as they were', () => {
+    const noScene = storyLayout(input({ template: storyTemplate('solo_game'), rules: duelStoryLines(duel, t), hasScene: false }), measure);
+    for (const shape of noScene) if (shape.kind === 'rect' && shape.fill === 'paper') expect(shape.y + shape.h + (shape.shadow ?? 0)).toBeLessThanOrEqual(STORY_HEIGHT - 120);
+    const plain = storyLayout(input(), measure);
+    expect(plain.some((shape) => shape.kind === 'icon' && shape.icon === 'swords')).toBe(false);
   });
 });

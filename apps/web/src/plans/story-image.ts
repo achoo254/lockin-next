@@ -40,6 +40,8 @@ export interface StoryInput {
   /** "Chưa vote": starts the waiting line. */
   waitingLabel?: string;
   nobodyLabel: string;
+  /** The house rules of a solo game plan (duel-story.ts): the first line is the header. Makes the layout compact. */
+  rules?: string[];
   /** A picture of the scene (who sits where) is drawn in place of the sticker. Set by renderStoryPng. */
   hasScene?: boolean;
 }
@@ -47,7 +49,7 @@ export interface StoryInput {
 /** Width of `text` in `font` (canvas measureText in the browser). */
 export type Measure = (text: string, font: string) => number;
 
-export type StoryIcon = 'clock' | 'pin' | 'users';
+export type StoryIcon = 'clock' | 'pin' | 'users' | 'swords';
 
 export type StoryShape =
   | { kind: 'rect'; x: number; y: number; w: number; h: number; r: number; fill: keyof StoryColours; stroke?: number; shadow?: number; rotate?: number }
@@ -147,7 +149,13 @@ const STICKER = 460;
 const SCENE_Y = 210;
 export const SCENE_W = INNER_W;
 export const SCENE_H = 540;
+/** A story with a rules box has less room for the picture. */
+export const DUEL_SCENE_H = 400;
 export const SCENE_RENDER_SCALE = 1.6;
+const RULE_FONT = font(700, 34, FONT_BODY);
+const RULE_HEAD_FONT = font(800, 34, FONT_BODY);
+const RULE_STEP = 44;
+const RULE_PAD = 30;
 
 /** Every shape of the story image, back to front. */
 export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
@@ -159,18 +167,20 @@ export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
   shapes.push({ kind: 'image', src: 'logo', x: MARGIN, y: 96, size: 88, framed: true });
   shapes.push({ kind: 'text', text: input.appName, x: MARGIN + 88 + 28, y: 162, font: font(800, 64, FONT_DISPLAY), fill: 'titleInk' });
   const scene = input.hasScene === true;
+  // A story with the house rules of a solo game plan trades picture height, lines and names for the rules box.
+  const rules = input.rules && input.rules.length > 0 ? input.rules : null;
   if (scene) {
     // The picture of who sits where takes the sticker's place, framed like the info boxes.
-    shapes.push({ kind: 'photo', x: MARGIN, y: SCENE_Y, w: SCENE_W, h: SCENE_H });
+    shapes.push({ kind: 'photo', x: MARGIN, y: SCENE_Y, w: SCENE_W, h: rules ? DUEL_SCENE_H : SCENE_H });
   } else {
     // The activity's sticker, large near the top (the app's logo for the default template).
     const sticker = input.template.sticker !== null;
-    const size = sticker ? STICKER : 360;
-    shapes.push({ kind: 'image', src: sticker ? 'sticker' : 'logo', x: (STORY_WIDTH - size) / 2, y: sticker ? 220 : 270, size, framed: !sticker });
+    const size = sticker ? (rules ? 360 : STICKER) : 360;
+    shapes.push({ kind: 'image', src: sticker ? 'sticker' : 'logo', x: (STORY_WIDTH - size) / 2, y: sticker ? (rules ? 210 : 220) : 270, size, framed: !sticker });
   }
 
-  let y = scene ? 770 : 700;
-  for (const line of wrapText(input.title, INNER_W, scene ? 2 : 3, TITLE_FONT, measure)) {
+  let y = rules ? 630 : scene ? 770 : 700;
+  for (const line of wrapText(input.title, INNER_W, rules ? 1 : scene ? 2 : 3, TITLE_FONT, measure)) {
     y += 116;
     shapes.push({ kind: 'text', text: line, x: MARGIN, y, font: TITLE_FONT, fill: 'titleInk' });
   }
@@ -195,14 +205,31 @@ export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
     });
     y += h + 34;
   };
-  if (input.when) box('clock', wrapText(input.when, textW, 2, LINE_FONT, measure));
-  if (input.place) box('pin', wrapText(input.area ? `${input.place} · ${input.area}` : input.place, textW, 2, LINE_FONT, measure));
+  const infoLines = rules ? 1 : 2;
+  if (input.when) box('clock', wrapText(input.when, textW, infoLines, LINE_FONT, measure));
+  if (input.place) {
+    // With the rules box there is one line for the place: the area goes with it only when both fit.
+    const withArea = input.area ? `${input.place} · ${input.area}` : input.place;
+    box('pin', wrapText(rules && measure(withArea, LINE_FONT) > textW ? input.place : withArea, textW, infoLines, LINE_FONT, measure));
+  }
+  if (rules) {
+    // The house rules: the header (game, rounds, how a round is won) in bold, then the rules and the stake.
+    const h = rules.length * RULE_STEP + 2 * RULE_PAD - 8;
+    shapes.push({ kind: 'rect', x: MARGIN, y, w: INNER_W, h, r: 28, fill: 'paper', stroke: 6, shadow: 10 });
+    shapes.push({ kind: 'icon', icon: 'swords', x: MARGIN + LINE_PAD, y: y + RULE_PAD - 2, size: ICON });
+    rules.forEach((line, index) => {
+      const spec = index === 0 ? RULE_HEAD_FONT : RULE_FONT;
+      const text = wrapText(line, textW, 1, spec, measure)[0] ?? '';
+      shapes.push({ kind: 'text', text, x: MARGIN + LINE_PAD + ICON + ICON_GAP, y: y + RULE_PAD + 30 + index * RULE_STEP, font: spec, fill: 'ink' });
+    });
+    y += h + 34;
+  }
   // One box, at most three lines: the people going, then the ones still to vote (the box keeps its height either way).
   const waiting = input.waiting ?? [];
-  const goingLines = input.names.length > 0 ? fitNames(input.names, textW, waiting.length > 0 ? 2 : 3, LINE_FONT, measure) : waiting.length > 0 ? [] : [input.nobodyLabel];
+  const goingLines = input.names.length > 0 ? fitNames(input.names, textW, rules ? 1 : waiting.length > 0 ? 2 : 3, LINE_FONT, measure) : waiting.length > 0 && !rules ? [] : [input.nobodyLabel];
   const [firstWaiting = '', ...otherWaiting] = waiting;
   const waitingLines =
-    waiting.length > 0 ? fitNames([`${input.waitingLabel ?? ''}: ${firstWaiting}`, ...otherWaiting], textW, goingLines.length > 0 ? 1 : 3, LINE_FONT, measure) : [];
+    waiting.length > 0 && !rules ? fitNames([`${input.waitingLabel ?? ''}: ${firstWaiting}`, ...otherWaiting], textW, goingLines.length > 0 ? 1 : 3, LINE_FONT, measure) : [];
   box('users', [...goingLines, ...waitingLines]);
 
   shapes.push({ kind: 'text', text: input.footer, x: MARGIN, y: STORY_HEIGHT - 96, font: font(700, 38, FONT_BODY), fill: 'titleInk' });
@@ -213,6 +240,7 @@ export function storyLayout(input: StoryInput, measure: Measure): StoryShape[] {
 const ICON_PATHS: Record<StoryIcon, string> = {
   clock: 'M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0zM12 7v5l3 2',
   pin: 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM14.5 10a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0z',
+  swords: 'M5 5l14 14M19 5L5 19M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4',
   users: 'M12.5 8a3.5 3.5 0 1 1-7 0a3.5 3.5 0 1 1 7 0zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6',
 };
 
@@ -420,8 +448,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /** The PNG of the story image, drawn once the self-hosted fonts and the images are ready. */
 export async function renderStoryPng(input: StoryInput, logoSrc: string, scene: CanvasImageSource | null = null): Promise<Blob> {
-  const text = [input.when, input.place, input.area, ...input.names, ...(input.waiting ?? []), input.waitingLabel].filter(Boolean).join(' ') || input.title;
-  await Promise.all([document.fonts.load(TITLE_FONT, input.title), document.fonts.load(LINE_FONT, text), document.fonts.load(font(700, 38, FONT_BODY), input.footer)]);
+  const text = [input.when, input.place, input.area, ...input.names, ...(input.waiting ?? []), input.waitingLabel, ...(input.rules ?? [])].filter(Boolean).join(' ') || input.title;
+  await Promise.all([document.fonts.load(TITLE_FONT, input.title), document.fonts.load(LINE_FONT, text), document.fonts.load(RULE_FONT, text), document.fonts.load(RULE_HEAD_FONT, text), document.fonts.load(font(700, 38, FONT_BODY), input.footer)]);
   await document.fonts.ready;
   const [logo, sticker] = await Promise.all([loadImage(logoSrc), input.template.sticker && scene === null ? loadImage(input.template.sticker) : Promise.resolve(null)]);
   const canvas = document.createElement('canvas');

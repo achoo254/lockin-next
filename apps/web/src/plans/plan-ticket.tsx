@@ -5,13 +5,14 @@ import { APP_HOST, BRAND_MARK_SRC, brand } from '../brand';
 import { type Locale, type Translate, useI18n } from '../i18n/i18n';
 import { Icon } from '../ui/icon';
 import { DuelCard } from './duel-card';
+import { duelStoryLines } from './duel-story';
 import { goingNames, lockedOptions, mapHref, optionText, pendingMembers } from './plan-format';
 import { PersonChip } from './plan-parts';
 import { PlanScene } from './scene/plan-scene';
 import { sceneContent } from './scene/scene-config';
 import { hasScene } from './scene/scene-model';
 import { shareOrCopy, useFlag } from './share-actions';
-import { SCENE_H, SCENE_RENDER_SCALE, SCENE_W, type StoryInput, renderStoryPng, shareOrDownloadStory } from './story-image';
+import { DUEL_SCENE_H, SCENE_H, SCENE_RENDER_SCALE, SCENE_W, type StoryInput, renderStoryPng, shareOrDownloadStory } from './story-image';
 import { storyTemplate } from './story-templates';
 import { formatDong } from './vn-time';
 
@@ -44,12 +45,12 @@ function useStampOnce(plan: PlanView): boolean {
 }
 
 /** The picture of who sits where for the story image; null when the plan has no scene or this device cannot draw it. */
-async function sceneForStory(plan: PlanView, t: Translate, locale: Locale): Promise<HTMLCanvasElement | null> {
+async function sceneForStory(plan: PlanView, t: Translate, locale: Locale, height: number): Promise<HTMLCanvasElement | null> {
   if (!hasScene(plan)) return null;
   try {
     const { renderSceneSnapshot } = await import('./scene/scene-snapshot');
     const { theme, roster, signage, labels, moreLabel } = sceneContent(plan, t, locale);
-    return await renderSceneSnapshot({ theme, roster, signage, labels, moreLabel }, Math.round(SCENE_W * SCENE_RENDER_SCALE), Math.round(SCENE_H * SCENE_RENDER_SCALE));
+    return await renderSceneSnapshot({ theme, roster, signage, labels, moreLabel }, Math.round(SCENE_W * SCENE_RENDER_SCALE), Math.round(height * SCENE_RENDER_SCALE));
   } catch (error) {
     console.error('story scene failed', error instanceof Error ? error.message : typeof error);
     return null;
@@ -90,9 +91,10 @@ export function PlanTicket({ plan, link }: { plan: PlanView; link: string }): Re
       waiting,
       waitingLabel: t('story.waiting'),
       nobodyLabel: t('ticket.nobody'),
+      ...(plan.duel ? { rules: duelStoryLines(plan.duel, t) } : {}),
     };
     try {
-      const png = await renderStoryPng(input, STORY_LOGO_SRC, await sceneForStory(plan, t, locale));
+      const png = await renderStoryPng(input, STORY_LOGO_SRC, await sceneForStory(plan, t, locale, plan.duel ? DUEL_SCENE_H : SCENE_H));
       const outcome = await shareOrDownloadStory(png, `${t('story.fileName')}.png`, plan.title);
       setStory(outcome === 'cancelled' ? 'idle' : 'saved');
     } catch (error) {
