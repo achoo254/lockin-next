@@ -14,6 +14,8 @@ export interface Entrance {
   delay: number;
   path: Array<[number, number]>;
   length: number;
+  /** The height of the floor at the seat (the stands rise in tiers). */
+  y: number;
   yaw: number;
 }
 
@@ -27,7 +29,7 @@ export function makeEntrance(person: Person, seat: SeatSpot, index: number, coun
   const path: Array<[number, number]> = [[seat.aisleX, STREET_Z], [seat.aisleX, seat.z], [seat.x, seat.z]];
   let length = 0;
   for (let i = 1; i < path.length; i++) length += Math.hypot((path[i]?.[0] ?? 0) - (path[i - 1]?.[0] ?? 0), (path[i]?.[1] ?? 0) - (path[i - 1]?.[1] ?? 0));
-  return { person, delay: entranceDelay(index, count), path, length, yaw: seat.back ? 0 : Math.PI };
+  return { person, delay: entranceDelay(index, count), path, length, y: seat.y, yaw: seat.back ? 0 : Math.PI };
 }
 
 /** Puts the person at the start of the walk, standing and out of sight until their turn. */
@@ -64,7 +66,9 @@ export function stepEntrance(entrance: Entrance, t: number): boolean {
   const walked = elapsed * WALK_SPEED;
   if (walked < entrance.length) {
     const at = pointAt(entrance.path, walked);
-    person.root.position.set(at.x, Math.abs(Math.sin(elapsed * STEP_PERIOD)) * 0.03, at.z);
+    // The last stretch, along the row to the seat, is walked on the tier.
+    const onTier = walked > Math.hypot((entrance.path[1]?.[0] ?? 0) - (entrance.path[0]?.[0] ?? 0), (entrance.path[1]?.[1] ?? 0) - (entrance.path[0]?.[1] ?? 0));
+    person.root.position.set(at.x, (onTier ? entrance.y : 0) + Math.abs(Math.sin(elapsed * STEP_PERIOD)) * 0.03, at.z);
     person.root.rotation.y = at.yaw;
     const swing = Math.sin(elapsed * STEP_PERIOD) * 0.5;
     person.arms[0].rotation.x = swing;
@@ -72,7 +76,7 @@ export function stepEntrance(entrance: Entrance, t: number): boolean {
     return false;
   }
   const last = entrance.path[entrance.path.length - 1] ?? [0, 0];
-  person.root.position.set(last[0], 0, last[1]);
+  person.root.position.set(last[0], entrance.y, last[1]);
   const turned = Math.min(1, (walked - entrance.length) / (WALK_SPEED * TURN_TIME));
   const from = pointAt(entrance.path, entrance.length).yaw;
   person.root.rotation.y = lerpAngle(from, entrance.yaw, turned);
@@ -90,6 +94,10 @@ export function idle(person: Person, t: number, scale: number): void {
     arms[1].rotation.x = -1.05 - sip * 0.9;
     head.rotation.x = -sip * 0.12;
     head.rotation.y = Math.sin(t * 0.5 + person.phase) * 0.18 * scale;
+  } else if (person.entry.group === 'duel') {
+    // On guard: the sword arm sways a little, the player rocks on the spot.
+    arms[1].rotation.x = -1.15 + Math.sin(t * 2.2 + person.phase) * 0.12 * scale;
+    person.root.position.y = Math.abs(Math.sin(t * 2.2 + person.phase)) * 0.025 * scale;
   } else if (person.entry.group === 'no') {
     head.rotation.x = 0.35 + Math.sin(t * 0.9 + person.phase) * 0.03 * scale;
   } else {

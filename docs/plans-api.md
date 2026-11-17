@@ -82,10 +82,10 @@ hỏng) → 400 `bad-request`, không ghi log.
 
 | Method | Đường dẫn | Ai | Body | Trả về | Mã lỗi |
 |---|---|---|---|---|---|
-| POST | `/api/plans` | ai cũng được (đăng nhập hay không) | `title` (1–80), `activity` (`coffee`·`dinner`·`movie`·`karaoke`·`day_trip`·`birthday`·`lunch`·`party`·`team_building`·`meeting`·`other`), `area?` (≤80), `budgetPerPerson?` (VND, 0–100 000 000), `groupSize?` (2–50, số người dự kiến để nhắc ai chưa vote), `memberNames?` (tối đa 50 tên, mỗi tên ≤40; bỏ trùng không phân biệt hoa thường, dấu, chữ đ; có thì lời nhắc, vé chốt kèo, cảnh 3D và ảnh story nêu tên ai chưa vote, khớp với tên người tham gia theo [`member-names.ts`](../apps/server/src/plans/member-names.ts)), `voteDeadline` (ISO, sau bây giờ, ≤60 ngày), `options` (1–20, mỗi loại ≤10: `{kind:"time", startsAt, label?}` hoặc `{kind:"place", label, mapUrl?}`; `mapUrl` chỉ nhận link https của Google Maps: `maps.app.goo.gl/…`, `goo.gl/maps/…`, `google.com/maps/place/…`, `google.com/maps/search/…`, [`map-link.ts`](../apps/server/src/plans/map-link.ts); máy chủ không mở link), `creatorDisplayName` (≤40, có thì người tạo tham gia luôn, đi; **bắt buộc khi chưa đăng nhập**; web điền sẵn tên tài khoản) | 201 `{ plan: PlanView, share: { token, url }, manage: { url } \| null }`; chưa đăng nhập: `manage` và `Set-Cookie` cookie người tạo; đã đăng nhập: `manage: null` | 400 `invalid-body`, 400 `name-required`, 400 `invalid-deadline`, 429 `rate-limited` |
+| POST | `/api/plans` | ai cũng được (đăng nhập hay không) | `title` (1–80), `activity` (`coffee`·`dinner`·`movie`·`karaoke`·`solo_game`·`day_trip`·`birthday`·`lunch`·`party`·`team_building`·`meeting`·`other`), `area?` (≤80), `budgetPerPerson?` (VND, 0–100 000 000), `groupSize?` (2–50, số người dự kiến để nhắc ai chưa vote), `memberNames?` (tối đa 50 tên, mỗi tên ≤40; bỏ trùng không phân biệt hoa thường, dấu, chữ đ; có thì lời nhắc, vé chốt kèo, cảnh 3D và ảnh story nêu tên ai chưa vote, khớp với tên người tham gia theo [`member-names.ts`](../apps/server/src/plans/member-names.ts)), `duel` (**bắt buộc khi `activity` là `solo_game`, và chỉ khi đó**: luật kèo solo game, xem dưới bảng; [`duel.ts`](../apps/server/src/plans/duel.ts)), `voteDeadline` (ISO, sau bây giờ, ≤60 ngày), `options` (1–20, mỗi loại ≤10: `{kind:"time", startsAt, label?}` hoặc `{kind:"place", label, mapUrl?}`; `mapUrl` chỉ nhận link https của Google Maps: `maps.app.goo.gl/…`, `goo.gl/maps/…`, `google.com/maps/place/…`, `google.com/maps/search/…`, [`map-link.ts`](../apps/server/src/plans/map-link.ts); máy chủ không mở link), `creatorDisplayName` (≤40, có thì người tạo tham gia luôn, đi; **bắt buộc khi chưa đăng nhập**; web điền sẵn tên tài khoản) | 201 `{ plan: PlanView, share: { token, url }, manage: { url } \| null }`; chưa đăng nhập: `manage` và `Set-Cookie` cookie người tạo; đã đăng nhập: `manage: null` | 400 `invalid-body`, 400 `name-required`, 400 `invalid-deadline`, 429 `rate-limited` |
 | GET | `/api/plans` | ai cũng được | — | `{ plans: [{ id, title, activity, status, voteDeadline, createdAt, participantCount, shareUrl, savedToAccount }] }`: kèo của tài khoản đang đăng nhập cộng kèo có cookie người tạo trên trình duyệt này (đọc tối đa 50 cookie, mỗi cookie kiểm với token của kèo), mới nhất trước, ≤200; `participantCount` chỉ đếm khách đã tham gia, không tính người tạo; `shareUrl` null như `plan.share`; không có gì thì `[]` | — |
 | GET | `/api/plans/:id` | người tạo | — | `{ plan: PlanView }` | 401, 403 `not-creator`, 404 `not-found` |
-| PATCH | `/api/plans/:id` | người tạo | như tạo kèo, mọi trường tuỳ chọn; `options` là cả danh sách mới (có `id` = sửa/giữ, không `id` = thêm, thiếu = xoá) | `{ plan: PlanView }` | 401, 403, 404, 400 `invalid-body`·`invalid-deadline`·`invalid-option`, 409 `plan-not-open`·`plan-expired` |
+| PATCH | `/api/plans/:id` | người tạo | như tạo kèo, mọi trường tuỳ chọn; `duel` là cả bộ luật mới (đổi `activity` khỏi `solo_game` thì bộ luật bị bỏ; đổi sang `solo_game` thì phải gửi kèm `duel`); `options` là cả danh sách mới (có `id` = sửa/giữ, không `id` = thêm, thiếu = xoá) | `{ plan: PlanView }` | 401, 403, 404, 400 `invalid-body`·`invalid-deadline`·`invalid-option`, 409 `plan-not-open`·`plan-expired` |
 | POST | `/api/plans/:id/lock` | người tạo | `{ timeOptionId?, placeOptionId? }` | `{ plan: PlanView }` | 401, 403, 404, 400 `lock-choice-required`·`invalid-option`, 409 `plan-not-open`·`plan-expired` |
 | POST | `/api/plans/:id/cancel` | người tạo | — | `{ plan: PlanView }` | 401, 403, 404, 409 `plan-closed`·`plan-expired` |
 | POST | `/api/plans/:id/done` | người tạo | — | `{ plan: PlanView }` | 401, 403, 404, 409 `plan-not-locked`·`plan-expired` |
@@ -113,7 +113,9 @@ Token sai, sai dạng, đã đổi, hay kèo đã xoá đều trả cùng một 
   share?: { token; url } | null;  // chỉ người tạo thấy
   manage?: { url } | null;     // chỉ người tạo thấy; null cho kèo không có token người tạo (tạo khi đã đăng nhập, hoặc trước tính năng)
   savedToAccount?: boolean;    // chỉ người tạo thấy; false: kèo chỉ nằm ở trình duyệt có cookie người tạo
-  title; activity; area; budgetPerPerson; groupSize; memberNames; voteDeadline; readOnlyAt; status;
+  title; activity; area; budgetPerPerson; groupSize; memberNames;
+  duel: { game, bestOf, winCondition, rules, customRules, stake } | null;  // luật kèo solo game, null cho kèo khác
+  voteDeadline; readOnlyAt; status;
   creatorName: string | null;  // tên người tạo nhập trong kèo; null khi người tạo chưa tham gia
   lockedOptionIds: string[];
   options: [{ id, kind, label, mapUrl, startsAt, votes }];  // giờ trước, rồi chỗ, theo thứ tự người tạo
@@ -155,3 +157,18 @@ trình.
 kèo thứ hai trong 30 ngày sau kèo đầu. "Người tạo" là tài khoản; kèo tạo khi chưa đăng nhập tính khi đã lưu vào tài
 khoản. Phần "Signed in or not" đếm kèo tạo khi đã/chưa đăng nhập và số kèo chưa đăng nhập được lưu vào tài khoản.
 `--exclude-owner` luôn giữ kèo chưa thuộc tài khoản nào. Kèo đã bị xoá (90 ngày sau hạn) không còn trong số liệu.
+
+## Kèo solo game (`activity: "solo_game"`)
+
+Hai người đấu một đường (Liên Quân, Liên Minh, Tốc Chiến hay game khác) theo luật nhà. Khối `duel` đi cùng kèo, người mở link nào cũng thấy; giờ và chỗ (phòng custom, quán net) vote như mọi kèo. Bấm "Đi" nghĩa là đồng ý theo luật và vào trận: tối đa 5 đấu 5, người tạo trước rồi theo thứ tự tham gia, lần lượt vào đội xanh và đội đỏ; ai bấm "Đi" sau 10 người đầu, hoặc không đi, là khán giả. Máy chủ không giới hạn số người tham gia, việc chia đội chỉ nằm ở cảnh 3D (`scene-model.ts`).
+
+| Trường | Giá trị |
+|---|---|
+| `game` | `lien_quan` · `lmht` · `wild_rift` · `other` |
+| `bestOf` | `1` · `3` · `5` |
+| `winCondition` | `first_blood` · `first_tower` · `first_3_kills` · `first_base` |
+| `rules` | các luật chọn sẵn, không lặp: `basic_attacks_only` (chỉ đánh thường), `no_summoner_spells`, `no_bush` (không núp bụi), `no_minion_farm` (không farm lính), `no_heal` (không ăn hồi máu), `no_recall`, `stay_in_lane`, `no_gank`, `same_hero`; được để trống |
+| `customRules` | tối đa 5 dòng, mỗi dòng ≤80, không lặp (không phân biệt hoa thường), không xuống dòng |
+| `stake` | cược vui (≤80), trống thì `null` |
+
+Lưu ở cột `plans.duel` (jsonb); ràng buộc `plans_duel_check` giữ `duel` có đúng khi `activity` là `solo_game`. Nhãn của từng luật nằm ở web (`apps/web/src/i18n/messages.ts`, khoá `duel.*`), nên thêm luật chọn sẵn là sửa `duel.ts` và hai bản dịch.

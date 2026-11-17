@@ -3,8 +3,8 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import type { PlanView } from '../../api/plans-api';
 import { useI18n } from '../../i18n/i18n';
 import type { SceneController } from './scene-controller';
-import { sceneContent } from './scene-config';
-import { type SceneEntry, type SceneGroup, groupCounts } from './scene-model';
+import { sceneContent, sceneTranslate } from './scene-config';
+import { type SceneEntry, type SceneGroup, groupCounts, sceneTheme } from './scene-model';
 import type { Signage } from './scene-textures';
 import type { WorldLabels } from './scene-world';
 
@@ -16,16 +16,18 @@ type Shown = [SceneEntry[], Signage, WorldLabels, string];
 const loadController = (): Promise<typeof import('./scene-controller')> => import('./scene-controller');
 
 export function PlanScene({ plan, enter }: { plan: PlanView; enter: boolean }): ReactNode {
-  const { t, locale } = useI18n();
+  const { t: translate, locale } = useI18n();
+  const theme = sceneTheme(plan);
+  const t = useMemo(() => sceneTranslate(translate, theme), [translate, theme]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<SceneController | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<SceneGroup | null>(null);
 
-  const content = sceneContent(plan, t, locale);
+  const content = sceneContent(plan, translate, locale);
   // The scene is rebuilt only when what it shows changes, not on every refetch of the same plan.
-  const key = JSON.stringify([content.roster, content.signage, content.labels, locale]);
+  const key = JSON.stringify([content.roster, content.signage, content.labels, locale, content.theme]);
   const stable = useMemo(() => JSON.parse(key) as Shown, [key]);
   const [roster, signage, labels] = stable;
   const latestRoster = useRef(roster);
@@ -44,7 +46,7 @@ export function PlanScene({ plan, enter }: { plan: PlanView; enter: boolean }): 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     void loadController()
       .then(({ SceneController: Controller }) =>
-        Controller.create(canvas, { roster: initial, signage, labels, moreLabel: (n) => t('scene.more', { n }), enter, reducedMotion, interactive: true }),
+        Controller.create(canvas, { theme, roster: initial, signage, labels, moreLabel: (n) => t('scene.more', { n }), enter, reducedMotion, interactive: true }),
       )
       .then((controller) => {
         if (cancelled) {
@@ -69,7 +71,7 @@ export function PlanScene({ plan, enter }: { plan: PlanView; enter: boolean }): 
     };
     // `enter` is read once: the walk-in is for the first opening only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signage, labels, locale]);
+  }, [signage, labels, locale, theme]);
 
   // A failed load (a dropped connection while the 3D code came down) leaves the ticket as it is, with a way to try again.
   if (state === 'failed') {
@@ -120,7 +122,7 @@ export function PlanScene({ plan, enter }: { plan: PlanView; enter: boolean }): 
                 <span className="scene-dot" data-group={selected.group} aria-hidden="true" />
                 <div>
                   <b>
-                    {selected.name} · {t(`scene.group.${selected.group}`)}
+                    {selected.name} · {selected.team ? t(`arena.team.${selected.team}`) : t(`scene.group.${selected.group}`)}
                   </b>
                   <span>{selected.say ?? t(`scene.groupDesc.${selected.group}`)}</span>
                 </div>

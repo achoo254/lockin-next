@@ -10,6 +10,16 @@ giờ và chỗ, cả nhóm thấy kết quả và ai đi. Miễn phí, không g
 **Trạng thái:** đang chạy: tạo kèo (`/new`), màn gửi link (`/plans/<id>`), trang kèo (`/k/<token>`) với thẻ xem trước
 link, "Kèo của tôi" (`/plans`), nhật ký phễu và `pnpm stats` (xem [`docs/plans-api.md`](docs/plans-api.md)).
 
+**Kèo solo game** (loại "⚔️ Kèo solo game"): hai người đấu một đường trong Liên Quân, Liên Minh, Tốc Chiến hay game khác. Người tạo chọn game,
+số ván (Bo1/3/5), cách thắng một ván (lấy mạng đầu, phá trụ đầu, đủ 3 mạng, phá nhà chính), bật tắt các luật quen thuộc
+của kèo solo (chỉ đánh thường không dùng chiêu, không núp bụi, không farm lính, không ăn hồi máu, không về nhà, ở yên
+trong đường, không gank, cùng một tướng), tự viết thêm tối đa 5 luật riêng và đặt cược vui ("thua bao ly trà sữa").
+Bộ luật hiện thành thẻ "Luật kèo" trên trang kèo và trên vé khi chốt; bấm "Đi" là đồng ý theo luật và vào trận.
+Tối đa 5 đấu 5: người tạo rồi những người bấm "Đi" kế tiếp lần lượt vào đội xanh, đội đỏ (hai người là solo 1v1), người
+bấm "Đi" sau đó và những ai không đi ra sân thì xem trên khán đài. Khi chốt, vé có cảnh 3D đấu trường: đường đấu cỏ giữa hai
+trụ pha lê, hai đội cầm kiếm đối mặt, khán giả ngồi khán đài theo luật vote giờ và chỗ như kèo quán bia hơi. Xem
+[`docs/plans-api.md`](docs/plans-api.md).
+
 Kèo đã chốt của bữa ăn (ăn tối, ăn trưa, tiệc, sinh nhật, team building) có "ảnh bìa" 3D trên thẻ vé: quán bia hơi
 vỉa hè Hà Nội, ai vote đúng giờ và đúng nơi đã chốt thì ngồi bàn ghế nhựa, ai lệch giờ, lệch nơi, chưa vote hay không đi
 thì đứng ngoài với bong bóng nói lý do (xoay bằng kéo, zoom bằng nút +/−, lăn chuột hoặc hai ngón; chạm nhân vật để xem họ

@@ -99,6 +99,7 @@
   --story-party: #2b2b2b;
   --story-teambuilding: #9be37a;
   --story-meeting: #9cc3ff;
+  --story-duel: #ff8a5b;
   --story-ink: #141414;
   --story-ink-light: #ffffff;
   --story-paper: #ffffff;
@@ -112,6 +113,7 @@
   --status-both: #ff7a45;
   --status-none: #a7b0b8;
   --status-no: #ff6b7a;
+  --status-duel: #ff8a5b;
   --scene-sky-top: #8fd0ff;
   --scene-sky-mid: #cfeaff;
   --scene-sky-glow: #ffe58a;
@@ -179,6 +181,16 @@
   --scene-shirt-8: #58b8a8;
   --scene-trousers: #2d3646;
   --scene-shoe: #15151a;
+  --scene-arena-stone: #5b6270;
+  --scene-arena-stone-dark: #3b414d;
+  --scene-arena-grass: #3f8f4a;
+  --scene-arena-grass-dark: #2f7339;
+  --scene-arena-line: #f4f1e6;
+  --scene-arena-blue: #3f8fd8;
+  --scene-arena-red: #e0523f;
+  --scene-arena-banner: #1c2233;
+  --scene-arena-banner-ink: #ffffff;
+  --scene-arena-bench: #a26a35;
   --scene-label-bg: #0b0b0d;
   --scene-bubble: #fbfaf5;
   --scene-bubble-ink: #16161a;

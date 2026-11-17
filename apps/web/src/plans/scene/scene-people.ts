@@ -81,7 +81,8 @@ export class PeopleFactory {
     const shirt = kit.mat(p.shirts[(h >> 5) % p.shirts.length] ?? p.shirts[0] ?? '', 0.85);
     const trousers = kit.mat(p.trousers, 0.9);
     const shoe = kit.mat(p.shoe, 0.8);
-    const colour = this.status[entry.group];
+    // A player wears the colour of their side; everyone else the colour of their group.
+    const colour = entry.team === 'blue' ? p.arenaBlue : entry.team === 'red' ? p.arenaRed : this.status[entry.group];
 
     const root = new THREE.Group();
     const standLegs = new THREE.Group();
@@ -117,6 +118,11 @@ export class PeopleFactory {
     const cup = this.makeGlass();
     cup.position.set(0, -0.3, 0.02);
     arms[1].add(cup);
+    // A player of a solo game carries a sword in the right hand instead of a glass.
+    if (entry.group === 'duel') {
+      const blade = kit.box(arms[1], [0.035, 0.62, 0.012], kit.mat(p.keg, 0.25, { metalness: 0.8 }), 0, -0.62, 0, false);
+      kit.box(blade, [0.16, 0.035, 0.035], kit.mat(p.arenaBench, 0.6), 0, 0.3, 0, false);
+    }
 
     const ring = new THREE.Mesh(geo.ring, new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2;

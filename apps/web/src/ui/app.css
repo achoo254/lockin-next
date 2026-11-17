@@ -1297,6 +1297,48 @@ button.opt[disabled] {
   font-weight: 700;
 }
 
+/* ---------- duel: the house rules of a solo game plan ---------- */
+.duel-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--c-surface);
+}
+.duel-win {
+  margin: 0;
+  font-weight: 700;
+}
+.duel-rules {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.duel-rules li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+.duel-rules svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--c-lock);
+}
+.duel-stake {
+  margin: 0;
+  font-weight: 700;
+}
+.ticket .duel-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
 /* ---------- scene: who sits where on a locked plan ---------- */
 .scene-failed {
   display: flex;
@@ -1402,6 +1444,9 @@ button.opt[disabled] {
   height: 12px;
   border-radius: var(--radius-full);
   background: var(--c-text-muted);
+}
+.scene-dot[data-group="duel"] {
+  background: var(--status-duel);
 }
 .scene-dot[data-group="sit"] {
   background: var(--status-sit);

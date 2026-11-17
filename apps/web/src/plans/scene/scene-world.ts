@@ -3,12 +3,18 @@ import * as THREE from 'three';
 import { type Kit } from './scene-kit';
 import { type Signage, boardTexture, brickTexture, fasciaTexture, floorTexture, kerbTexture, pillarTexture, roundSignTexture } from './scene-textures';
 
-function ground(kit: Kit, root: THREE.Group): void {
+/** The kerb and the road in front of the premises, shared by every scene theme. */
+export function street(kit: Kit, root: THREE.Group): void {
   const { p } = kit;
-  kit.box(root, [26, 0.14, 5.4], new THREE.MeshStandardMaterial({ map: floorTexture(p), roughness: 0.85 }), 0, -0.07, -3.55, false).receiveShadow = true;
   kit.box(root, [26, 0.2, 0.28], new THREE.MeshStandardMaterial({ map: kerbTexture(p), roughness: 0.8 }), 0, 0.02, -0.74, false);
   kit.box(root, [34, 0.1, 12], kit.mat(p.road, 0.7), 0, -0.1, 5.2, false).receiveShadow = true;
   for (let x = -12; x < 13; x += 3) kit.box(root, [1.4, 0.01, 0.12], kit.mat(p.roadMark, 0.7), x, -0.04, 6.6, false);
+}
+
+function ground(kit: Kit, root: THREE.Group): void {
+  const { p } = kit;
+  kit.box(root, [26, 0.14, 5.4], new THREE.MeshStandardMaterial({ map: floorTexture(p), roughness: 0.85 }), 0, -0.07, -3.55, false).receiveShadow = true;
+  street(kit, root);
 }
 
 function backWall(kit: Kit, root: THREE.Group): void {
@@ -85,7 +91,7 @@ function bike(kit: Kit, root: THREE.Group, colour: string, x: number, z: number,
 }
 
 /** A chalkboard on two posts at a standing spot: the reason the people next to it stand outside. */
-function board(kit: Kit, root: THREE.Group, x: number, z: number, label: string, icon: 'clock' | 'pin'): void {
+export function board(kit: Kit, root: THREE.Group, x: number, z: number, label: string, icon: 'clock' | 'pin'): void {
   const { p } = kit;
   const group = new THREE.Group();
   group.position.set(x, 0, z);

@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { ACTIVITIES, type OptionKind, RSVPS } from '../db/schema';
 import { HttpError } from '../http-error';
+import { DUEL_RULES, GAMES, MAX_CUSTOM_RULES, MAX_CUSTOM_RULE_LENGTH, MAX_STAKE_LENGTH, WIN_CONDITIONS } from './duel';
 import { isGoogleMapsLink } from './map-link';
 import { MAX_MEMBER_NAMES, uniqueNames } from './member-names';
 import { isTokenShape } from './tokens';
@@ -72,6 +73,23 @@ const Options = z
 
 const DisplayName = line(40);
 
+/** The house rules of a solo game plan; no repeated preset, no repeated custom line (case ignored). */
+export const DuelInput = z.strictObject({
+  game: z.enum(GAMES),
+  bestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]),
+  winCondition: z.enum(WIN_CONDITIONS),
+  rules: z
+    .array(z.enum(DUEL_RULES))
+    .max(DUEL_RULES.length)
+    .refine((rules) => new Set(rules).size === rules.length),
+  customRules: z
+    .array(line(MAX_CUSTOM_RULE_LENGTH))
+    .max(MAX_CUSTOM_RULES)
+    .refine((rules) => new Set(rules.map((rule) => rule.toLowerCase())).size === rules.length),
+  stake: optionalLine(MAX_STAKE_LENGTH),
+});
+export type DuelInput = z.infer<typeof DuelInput>;
+
 const planFields = {
   title: line(80),
   activity: z.enum(ACTIVITIES),
@@ -91,9 +109,11 @@ const planFields = {
 export const CreatePlanInput = z.strictObject({
   ...planFields,
   options: Options,
+  /** The house rules: given exactly when the activity is `solo_game`. */
+  duel: DuelInput.optional(),
   /** The creator's name in the plan; given, the creator joins it at once (the web app pre-fills the account name). */
   creatorDisplayName: DisplayName.optional(),
-});
+}).refine((input) => (input.activity === 'solo_game') === (input.duel !== undefined));
 export type CreatePlanInput = z.infer<typeof CreatePlanInput>;
 
 /** Every field optional; `options`, when given, is the full new list (an option without `id` is new). */
@@ -106,6 +126,8 @@ export const UpdatePlanInput = z.strictObject({
   memberNames: planFields.memberNames.optional(),
   voteDeadline: planFields.voteDeadline.optional(),
   options: Options.optional(),
+  /** The full new house rules (a solo game plan only); the plan's activity decides whether it applies. */
+  duel: DuelInput.optional(),
 });
 export type UpdatePlanInput = z.infer<typeof UpdatePlanInput>;
 

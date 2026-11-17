@@ -36,6 +36,13 @@
       "when": 1794377318660,
       "tag": "0004_member-names",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794898336677,
+      "tag": "0005_solo-game-duel",
+      "breakpoints": true
     }
   ]
 }

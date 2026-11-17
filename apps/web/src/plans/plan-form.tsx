@@ -11,6 +11,7 @@ import type { MessageKey } from '../i18n/messages';
 import { isGoogleMapsLink, placeNameFromMapsLink } from '../../../server/src/plans/map-link';
 import { nameKey, uniqueNames } from '../../../server/src/plans/member-names';
 import { Icon } from '../ui/icon';
+import { DuelFields, type DuelForm, duelInput, initialDuel } from './duel-fields';
 import { loadRoster, saveRoster, splitNames } from './member-roster';
 import { errorMessage } from './error-message';
 import { FormError } from './plan-parts';
@@ -67,6 +68,8 @@ export interface CreateForm {
   groupSize: string;
   /** The friends expected in this plan (from the saved list or typed now), in the order added. */
   members: string[];
+  /** The house rules, sent only when the activity is `solo_game`. */
+  duel: DuelForm;
   name: string;
   times: TimeRow[];
   places: PlaceRow[];
@@ -117,6 +120,7 @@ export function initialForm(now: Date, name: string, t: Translate, roster: reado
     budget: '',
     groupSize: '',
     members: [...roster],
+    duel: initialDuel(),
     name: name.slice(0, 40),
     times,
     places: [{ key: rowKey(), label: '', mapUrl: null }],
@@ -148,13 +152,15 @@ export function buildCreateInput(form: CreateForm, now: Date, nameRequired = fal
     if (label) options.push({ kind: 'place', label, ...(row.mapUrl ? { mapUrl: row.mapUrl } : {}) });
   }
   if (options.length === 0) return { ok: false, error: 'form.error.noOption' };
+  const solo = form.activity === 'solo_game';
   let budgetPerPerson: number | undefined;
-  if (form.budget) {
+  if (form.budget && !solo) {
     budgetPerPerson = Number(form.budget);
     if (!Number.isInteger(budgetPerPerson) || budgetPerPerson > MAX_BUDGET) return { ok: false, error: 'form.error.budget' };
   }
-  let groupSize: number | undefined;
-  if (form.groupSize) {
+  // A solo game is one against one: the group is two, there is no budget to split.
+  let groupSize: number | undefined = solo ? 2 : undefined;
+  if (form.groupSize && !solo) {
     groupSize = Number(form.groupSize);
     if (!Number.isInteger(groupSize) || groupSize < 2 || groupSize > 50) return { ok: false, error: 'form.error.groupSize' };
   }
@@ -171,6 +177,7 @@ export function buildCreateInput(form: CreateForm, now: Date, nameRequired = fal
       ...(budgetPerPerson !== undefined ? { budgetPerPerson } : {}),
       ...(groupSize !== undefined ? { groupSize } : {}),
       ...(form.members.length > 0 ? { memberNames: uniqueNames(form.members) } : {}),
+      ...(solo ? { duel: duelInput(form.duel) } : {}),
       voteDeadline: deadline.toISOString(),
       options,
       ...(name ? { creatorDisplayName: name } : {}),
@@ -311,6 +318,7 @@ export function PlanForm({ defaultName, nameRequired = false, now = () => new Da
           {t('form.area')}
           <input className="in" value={form.area} maxLength={80} onChange={(e) => update({ area: e.target.value })} data-id="form-area" />
         </label>
+        {form.activity !== 'solo_game' && (
         <label className="field">
           {t('form.budget')}
           <span className="in-suffix">
@@ -327,7 +335,10 @@ export function PlanForm({ defaultName, nameRequired = false, now = () => new Da
             </span>
           </span>
         </label>
+        )}
       </div>
+
+      {form.activity === 'solo_game' && <DuelFields duel={form.duel} onChange={(duel) => update({ duel })} />}
 
       <fieldset className="group">
         <legend className="sec">
@@ -485,6 +496,7 @@ export function PlanForm({ defaultName, nameRequired = false, now = () => new Da
         </p>
       </fieldset>
 
+      {form.activity !== 'solo_game' && (
       <div className="field-row">
         <label className="field">
           <span>
@@ -493,6 +505,7 @@ export function PlanForm({ defaultName, nameRequired = false, now = () => new Da
           <input className="in" inputMode="numeric" value={form.groupSize} onChange={(e) => update({ groupSize: digits(e.target.value, 2) })} data-id="form-group-size" />
         </label>
       </div>
+      )}
       <fieldset className="group" data-id="members">
         <legend className="sec">
           <span className="sec-title">{t('form.members')}</span>

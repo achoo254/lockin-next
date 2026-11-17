@@ -8,16 +8,24 @@ import type { Locale, Translate } from '../../i18n/i18n';
 import { lockedOptions, membersNotJoined, optionText } from '../plan-format';
 import { formatVnDateTime, vnInputs } from '../vn-time';
 
-/** Sit = voted the locked time and place; the rest stand outside for the reason of their group. */
-export const SCENE_GROUPS = ['sit', 'time', 'place', 'both', 'none', 'no'] as const;
+/**
+ * Duel = one of the two players of a solo game plan. Sit = voted the locked time and place (at a table, or in the
+ * stands of a duel); the rest stand outside for the reason of their group.
+ */
+export const SCENE_GROUPS = ['duel', 'sit', 'time', 'place', 'both', 'none', 'no'] as const;
 export type SceneGroup = (typeof SCENE_GROUPS)[number];
 
-/** The beer-hall scene fits these activities; the others keep the plain ticket. */
-const SCENE_ACTIVITIES: ReadonlySet<Activity> = new Set<Activity>(['dinner', 'lunch', 'party', 'birthday', 'team_building']);
+/** `hall`: the street beer hall of a meal. `arena`: the lane of a solo game plan, with the stands. */
+export type SceneTheme = 'hall' | 'arena';
+
+/** The beer-hall scene fits these activities, the arena fits the solo game; the others keep the plain ticket. */
+const SCENE_ACTIVITIES: ReadonlySet<Activity> = new Set<Activity>(['dinner', 'lunch', 'party', 'birthday', 'team_building', 'solo_game']);
 
 export function hasScene(plan: PlanView): boolean {
   return (plan.status === 'locked' || plan.status === 'done') && SCENE_ACTIVITIES.has(plan.activity);
 }
+
+export const sceneTheme = (plan: Pick<PlanView, 'activity'>): SceneTheme => (plan.activity === 'solo_game' ? 'arena' : 'hall');
 
 export interface Classified {
   group: SceneGroup;
@@ -61,7 +69,7 @@ function compactTime(option: PlanOption): string {
 /** The short line in the speech bubble of someone standing outside; null for a person who sits. */
 export function sceneSay(classified: Classified, t: Translate, locale: Locale): string | null {
   const { group, time, place } = classified;
-  if (group === 'sit') return null;
+  if (group === 'sit' || group === 'duel') return null;
   if (group === 'none') return t('scene.say.none');
   if (group === 'no') return t('scene.say.no');
   if (group === 'time') return time ? t('scene.say.pick', { pick: clip(time.startsAt ? formatVnDateTime(time.startsAt, locale) : optionText(time, locale), SAY_PART_MAX) }) : t('scene.say.noTime');
@@ -70,11 +78,32 @@ export function sceneSay(classified: Classified, t: Translate, locale: Locale): 
   return t('scene.say.pick', { pick: parts.join(' · ') });
 }
 
+/** The two sides of a duel, like a MOBA's blue and red. */
+export type DuelTeam = 'blue' | 'red';
+
 export interface SceneEntry {
   id: string;
   name: string;
   group: SceneGroup;
   say: string | null;
+  /** The side of a player (group `duel`); undefined for everyone else. */
+  team?: DuelTeam;
+}
+
+/** A duel is at most five against five; everyone else who comes watches from the stands. */
+export const TEAM_SIZE = 5;
+export const MAX_PLAYERS = TEAM_SIZE * 2;
+
+/**
+ * The players in joining order: the first ten who are going, the creator first. They take the sides in turn (the
+ * creator blue, the next red, then blue again...), so two players are one against one and ten are five against five.
+ */
+export function duelPlayers(plan: Pick<PlanView, 'participants'>): Array<{ id: string; team: DuelTeam }> {
+  const ordered = [...plan.participants.filter((person) => person.isCreator), ...plan.participants.filter((person) => !person.isCreator)];
+  return ordered
+    .filter((person) => person.rsvp === 'going')
+    .slice(0, MAX_PLAYERS)
+    .map((person, index) => ({ id: person.id, team: index % 2 === 0 ? 'blue' : 'red' }));
 }
 
 /**
@@ -83,7 +112,10 @@ export interface SceneEntry {
  */
 export function buildRoster(plan: PlanView, t: Translate, locale: Locale): SceneEntry[] {
   const ordered = [...plan.participants.filter((person) => person.isCreator), ...plan.participants.filter((person) => !person.isCreator)];
+  const players = new Map((plan.duel ? duelPlayers(plan) : []).map((player) => [player.id, player.team]));
   const people = ordered.map((person): SceneEntry => {
+    const team = players.get(person.id);
+    if (team) return { id: person.id, name: person.displayName, group: 'duel', say: null, team };
     const classified = classify(person, plan);
     return { id: person.id, name: person.displayName, group: classified.group, say: sceneSay(classified, t, locale) };
   });
@@ -109,6 +141,8 @@ export interface TableSpot {
 export interface SeatSpot {
   x: number;
   z: number;
+  /** The height of the floor under the seat (the stands rise in tiers). */
+  y: number;
   table: number;
   /** On the far side of the table: faces the camera. */
   back: boolean;
@@ -149,7 +183,7 @@ export function layoutTables(sitting: number): TableLayout {
   tables.forEach((table, index) => {
     for (const side of [-1, 1]) {
       for (const step of SEAT_STEPS) {
-        seats.push({ x: table.x + step, z: table.z + side * SIDE_OFFSET, table: index, back: side < 0, aisleX: table.x + (step >= 0 ? AISLE : -AISLE) });
+        seats.push({ x: table.x + step, z: table.z + side * SIDE_OFFSET, y: 0, table: index, back: side < 0, aisleX: table.x + (step >= 0 ? AISLE : -AISLE) });
       }
     }
   });
@@ -162,11 +196,61 @@ export interface Placement {
   overflow: number;
 }
 
-export function placeSitters(sitting: number): Placement {
-  return { seated: Math.min(sitting, MAX_SITTERS), overflow: Math.max(0, sitting - MAX_SITTERS) };
+export function placeSitters(sitting: number, capacity: number = MAX_SITTERS): Placement {
+  return { seated: Math.min(sitting, capacity), overflow: Math.max(0, sitting - capacity) };
 }
 
-export type OutsideGroup = Exclude<SceneGroup, 'sit'>;
+/* ---------- the arena: two players on the lane, the rest in the stands ---------- */
+
+export const STAND_COLUMNS = 12;
+export const STAND_ROWS = 3;
+export const MAX_SPECTATORS = STAND_COLUMNS * STAND_ROWS;
+const STAND_SPACING = 0.9;
+const STAND_FRONT_Z = -4.35;
+const STAND_ROW_DEPTH = 0.62;
+const STAND_TIER = 0.28;
+/** The x of the walkway beside the stands, where a spectator walks in from the street. */
+const STAND_AISLE = 6.0;
+
+export interface StandLayout {
+  seats: SeatSpot[];
+  /** How many rows of stands are needed (at least one). */
+  rows: number;
+}
+
+/** z and floor height of a row of the stands (row 0 is the front one). */
+export const standRow = (row: number): { z: number; y: number } => ({ z: STAND_FRONT_Z - row * STAND_ROW_DEPTH, y: row * STAND_TIER });
+
+/**
+ * The stands: rows of twelve, front row first, each filled from the middle outwards, so everyone who comes in later
+ * walks along the row's outer end without passing someone already seated. All face the lane (the camera's side).
+ */
+export function layoutStands(spectators: number): StandLayout {
+  const middleOut = Array.from({ length: STAND_COLUMNS }, (_, index) => (index - (STAND_COLUMNS - 1) / 2) * STAND_SPACING).sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
+  const seats: SeatSpot[] = [];
+  const rows = Math.max(1, Math.min(STAND_ROWS, Math.ceil(spectators / STAND_COLUMNS)));
+  for (let row = 0; row < rows; row++) {
+    const { z, y } = standRow(row);
+    for (const x of middleOut) seats.push({ x, z, y, table: row, back: true, aisleX: x >= 0 ? STAND_AISLE : -STAND_AISLE });
+  }
+  return { seats, rows };
+}
+
+/** Each side forms up in a staggered line from the middle of the lane towards its tower, facing the other side. */
+const TEAM_FIRST_X = 0.9;
+const TEAM_STEP_X = 0.75;
+const LANE_CENTRE_Z = -2.6;
+const TEAM_STAGGER_Z = [0, 0.4, -0.4, 0.75, -0.75] as const;
+
+/** The place of the `index`-th player (0..4) of a side. */
+export function duelSpot(team: DuelTeam, index: number): Spot {
+  const side = team === 'blue' ? -1 : 1;
+  const x = side * (TEAM_FIRST_X + index * TEAM_STEP_X);
+  const z = LANE_CENTRE_Z + (TEAM_STAGGER_Z[index] ?? 0);
+  return { x, z, lookX: 0, lookZ: z };
+}
+
+export type OutsideGroup = Exclude<SceneGroup, 'sit' | 'duel'>;
 
 const OUTSIDE: Record<OutsideGroup, ReadonlyArray<readonly [number, number]>> = {
   time: [[-4.6, 1.0], [-3.6, 1.35], [-5.2, 1.6], [-4.0, 2.0]],

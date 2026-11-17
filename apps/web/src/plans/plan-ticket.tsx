@@ -4,6 +4,7 @@ import type { PlanView } from '../api/plans-api';
 import { APP_HOST, BRAND_MARK_SRC, brand } from '../brand';
 import { type Locale, type Translate, useI18n } from '../i18n/i18n';
 import { Icon } from '../ui/icon';
+import { DuelCard } from './duel-card';
 import { goingNames, lockedOptions, mapHref, optionText, pendingMembers } from './plan-format';
 import { PersonChip } from './plan-parts';
 import { PlanScene } from './scene/plan-scene';
@@ -47,8 +48,8 @@ async function sceneForStory(plan: PlanView, t: Translate, locale: Locale): Prom
   if (!hasScene(plan)) return null;
   try {
     const { renderSceneSnapshot } = await import('./scene/scene-snapshot');
-    const { roster, signage, labels, moreLabel } = sceneContent(plan, t, locale);
-    return await renderSceneSnapshot({ roster, signage, labels, moreLabel }, Math.round(SCENE_W * SCENE_RENDER_SCALE), Math.round(SCENE_H * SCENE_RENDER_SCALE));
+    const { theme, roster, signage, labels, moreLabel } = sceneContent(plan, t, locale);
+    return await renderSceneSnapshot({ theme, roster, signage, labels, moreLabel }, Math.round(SCENE_W * SCENE_RENDER_SCALE), Math.round(SCENE_H * SCENE_RENDER_SCALE));
   } catch (error) {
     console.error('story scene failed', error instanceof Error ? error.message : typeof error);
     return null;
@@ -161,6 +162,14 @@ export function PlanTicket({ plan, link }: { plan: PlanView; link: string }): Re
             </div>
           )}
         </div>
+        {plan.duel && (
+          <>
+            <div className="tear" />
+            <div className="ticket-body">
+              <DuelCard duel={plan.duel} />
+            </div>
+          </>
+        )}
         <div className="tear" />
         <div className="ticket-body">
           <p className="eyebrow">{t('ticket.going', { n: names.length })}</p>

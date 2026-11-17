@@ -26,6 +26,7 @@ export const STORY_TEMPLATES: Record<Activity, StoryTemplate> = {
   dinner: { bgToken: '--story-food', pattern: 'stripes', sticker: sticker('food'), ink: 'dark' },
   movie: { bgToken: '--story-movie', pattern: 'stars', sticker: sticker('movie'), ink: 'light' },
   karaoke: { bgToken: '--story-karaoke', pattern: 'stars', sticker: sticker('karaoke'), ink: 'dark' },
+  solo_game: { bgToken: '--story-duel', pattern: 'stripes', sticker: sticker('solo'), ink: 'dark' },
   day_trip: { bgToken: '--story-trip', pattern: 'zigzag', sticker: sticker('trip'), ink: 'dark' },
   birthday: { bgToken: '--story-birthday', pattern: 'confetti', sticker: sticker('birthday'), ink: 'dark' },
   lunch: { bgToken: '--story-lunch', pattern: 'grid', sticker: sticker('lunch'), ink: 'dark' },

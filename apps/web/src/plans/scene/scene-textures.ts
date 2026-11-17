@@ -162,6 +162,39 @@ export function fasciaTexture(p: ScenePalette, signage: Signage): THREE.CanvasTe
   });
 }
 
+/** The banner above the arena: the game and rounds on the left, the locked place on the right, "VS" in the middle. */
+export function arenaBannerTexture(p: ScenePalette, signage: Signage): THREE.CanvasTexture {
+  return canvasTexture(2048, 260, (ctx, w, h) => {
+    ctx.fillStyle = p.arenaBanner;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = p.arenaBlue;
+    ctx.fillRect(0, h - 22, w / 2, 22);
+    ctx.fillStyle = p.arenaRed;
+    ctx.fillRect(w / 2, h - 22, w / 2, 22);
+    const measure: Measure = (text, spec) => {
+      ctx.font = spec;
+      return ctx.measureText(text).width;
+    };
+    ctx.textAlign = 'center';
+    ctx.fillStyle = p.arenaBannerInk;
+    // The largest size at which the game and rounds fit their half of the banner on one line.
+    const titleSize = [84, 68, 56, 46].find((size) => measure(signage.placeName, font(800, size, FONT_DISPLAY)) <= 760) ?? 46;
+    ctx.font = font(800, titleSize, FONT_DISPLAY);
+    ctx.fillText(wrapText(signage.placeName, 760, 1, font(800, titleSize, FONT_DISPLAY), measure)[0] ?? '', 470, 150);
+    if (signage.area) {
+      ctx.font = font(700, 56, FONT_BODY);
+      ctx.fillText(wrapText(signage.area, 760, 1, font(700, 56, FONT_BODY), measure)[0] ?? '', 1578, 150);
+    }
+    ctx.fillStyle = p.arenaRed;
+    ctx.beginPath();
+    ctx.arc(1024, 120, 96, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = p.arenaBannerInk;
+    ctx.font = font(800, 110, FONT_DISPLAY);
+    ctx.fillText('VS', 1024, 156);
+  });
+}
+
 export function roundSignTexture(p: ScenePalette): THREE.CanvasTexture {
   return canvasTexture(256, 256, (ctx) => {
     ctx.fillStyle = p.red;

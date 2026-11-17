@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import type { Duel } from '../plans/duel';
 
 /**
  * An account of the hoandat.com IdP that signed in here: its `sub`, and the name, email and picture its userinfo
@@ -36,6 +37,7 @@ export const ACTIVITIES = [
   'dinner',
   'movie',
   'karaoke',
+  'solo_game',
   'day_trip',
   'birthday',
   'lunch',
@@ -86,6 +88,8 @@ export const plans = pgTable(
     groupSize: integer('group_size'),
     /** The names of the people the creator expects (at most 50, no repeats), to tell who has not voted yet. */
     memberNames: text('member_names').array().notNull().default(sql`'{}'::text[]`),
+    /** The house rules of a solo game plan (`activity` is `solo_game`); null for every other activity. */
+    duel: jsonb('duel').$type<Duel>(),
     voteDeadline: timestamp('vote_deadline', { withTimezone: true }).notNull(),
     status: text('status').$type<PlanStatus>().notNull().default('open'),
     shareTokenHash: text('share_token_hash').notNull().unique(),
@@ -100,6 +104,7 @@ export const plans = pgTable(
     index('plans_vote_deadline_idx').on(table.voteDeadline),
     check('plans_status_check', sql`${table.status} in (${sqlList(PLAN_STATUSES)})`),
     check('plans_activity_check', sql`${table.activity} in (${sqlList(ACTIVITIES)})`),
+    check('plans_duel_check', sql`(${table.activity} = 'solo_game') = (${table.duel} is not null)`),
     check('plans_group_size_check', sql`${table.groupSize} is null or ${table.groupSize} between 2 and 50`),
   ],
 );

@@ -114,6 +114,7 @@ export async function createPlan(
         budgetPerPerson: input.budgetPerPerson,
         groupSize: input.groupSize,
         memberNames: input.memberNames,
+        duel: input.duel ?? null,
         voteDeadline: input.voteDeadline,
         shareTokenHash: hashToken(shareToken),
         shareTokenEnc: box.seal(shareToken, id),
@@ -360,7 +361,13 @@ async function replaceOptions(tx: Db, plan: PlanRow, inputs: OptionInput[], now:
 export async function updatePlan(db: Db, planId: string, key: CreatorKey, input: UpdatePlanInput, now: Date): Promise<void> {
   await withCreatorPlan(db, planId, key, 'edit', now, async (tx, plan) => {
     if (input.voteDeadline) assertDeadline(input.voteDeadline, now);
-    const { options, ...fields } = input;
+    const { options, duel, ...planFields } = input;
+    // A solo game plan always has its rules and any other plan never does: the final activity decides.
+    const activity = planFields.activity ?? plan.activity;
+    const finalDuel = activity === 'solo_game' ? (duel ?? plan.duel) : null;
+    if (activity === 'solo_game' && finalDuel === null) throw new HttpError(400, 'invalid-body');
+    if (activity !== 'solo_game' && duel !== undefined) throw new HttpError(400, 'invalid-body');
+    const fields = { ...planFields, ...(finalDuel !== plan.duel ? { duel: finalDuel } : {}) };
     const changed = Object.entries(fields)
       .filter(([, value]) => value !== undefined)
       .map(([key]) => key);

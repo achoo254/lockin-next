@@ -11,6 +11,7 @@ import { brand } from '../brand';
 import { useI18n } from '../i18n/i18n';
 import { LockinPage } from '../layout/lockin-page';
 import { errorMessage } from '../plans/error-message';
+import { DuelCard } from '../plans/duel-card';
 import { LockPanel } from '../plans/lock-panel';
 import { optionsOf } from '../plans/plan-format';
 import { FormError, InviteCard, LoadingCard, NudgeCard, OptionRow, PlanHead, StateCard } from '../plans/plan-parts';
@@ -155,6 +156,7 @@ function PlanBody({ plan, token, path, session, onChange }: PlanBodyProps): Reac
     return (
       <>
         <PlanHead plan={plan} now={now} invite={false} />
+        {plan.duel && <DuelCard duel={plan.duel} />}
         {plan.can.vote && <NudgeCard plan={plan} link={link} />}
         {plan.can.vote && (
           <section className="group" aria-labelledby="creator-vote" data-id="creator-vote">
@@ -173,6 +175,7 @@ function PlanBody({ plan, token, path, session, onChange }: PlanBodyProps): Reac
   return (
     <>
       <PlanHead plan={plan} now={now} invite />
+      {plan.duel && <DuelCard duel={plan.duel} withAccept />}
       {!plan.can.vote && (
         <StateCard icon="clock" title={t('state.expiredVoteTitle')} text={t('state.expiredVoteText')} dataId="state-deadline">
           <span className="pill pill-warn">{t('state.expiredAt', { when: formatVnDateTime(plan.voteDeadline, locale) })}</span>

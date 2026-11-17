@@ -21,6 +21,7 @@ export function makePlan(overrides: Partial<PlanView> = {}): PlanView {
     budgetPerPerson: 60000,
     groupSize: null,
     memberNames: [],
+    duel: null,
     voteDeadline: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
     readOnlyAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'open',

@@ -6,14 +6,17 @@
 import * as THREE from 'three';
 import { Kit, disposeTree, glassFactory } from './scene-kit';
 import { type Entrance, beginEntrance, idle, makeEntrance, stepEntrance } from './scene-motion';
-import { cameraRadius, clampZoom, layoutTables, outsideSpot, placeSitters, type SceneEntry, type SceneGroup, type OutsideGroup } from './scene-model';
+import { MAX_SITTERS, MAX_SPECTATORS, cameraRadius, clampZoom, duelSpot, layoutStands, layoutTables, outsideSpot, placeSitters, type SceneEntry, type SceneGroup, type SceneTheme, type OutsideGroup } from './scene-model';
 import { readScenePalette, readStatusColours, type ScenePalette } from './scene-palette';
+import { buildArena, buildStands } from './scene-arena';
 import { buildFurniture } from './scene-furniture';
 import { BUBBLE_SIZE, LABEL_SIZE, type Person, PeopleFactory, SPRITE_ORDER } from './scene-people';
 import { type Signage, bubbleTexture, loadSceneFonts, skyTexture } from './scene-textures';
 import { type WorldLabels, buildWorld } from './scene-world';
 
 export interface SceneConfig {
+  /** `hall`: tables of a street beer hall. `arena`: the lane and stands of a solo game. */
+  theme: SceneTheme;
   roster: SceneEntry[];
   signage: Signage;
   labels: WorldLabels;
@@ -98,7 +101,7 @@ export class SceneController {
     this.scene.background = skyTexture(palette);
     this.scene.fog = new THREE.Fog(palette.fog, 20, 44);
     this.addLights(palette);
-    this.scene.add(buildWorld(this.kit, config.signage, config.labels, this.makeGlass), this.crowd);
+    this.scene.add(config.theme === 'arena' ? buildArena(this.kit, config.signage, config.labels) : buildWorld(this.kit, config.signage, config.labels, this.makeGlass), this.crowd);
     this.populate();
     if (config.interactive) this.listen();
     this.resize();
@@ -140,21 +143,37 @@ export class SceneController {
     }
     this.persons = [];
     this.entrances = [];
+    const arena = this.config.theme === 'arena';
     const sitters = this.config.roster.filter((entry) => entry.group === 'sit');
-    const layout = layoutTables(sitters.length);
-    this.furniture = buildFurniture(this.kit, layout, this.makeGlass);
+    const layout = arena ? layoutStands(sitters.length) : layoutTables(sitters.length);
+    const seats = layout.seats;
+    this.furniture = 'rows' in layout ? buildStands(this.kit, layout) : buildFurniture(this.kit, layout, this.makeGlass);
     this.scene.add(this.furniture);
-    const { seated, overflow } = placeSitters(sitters.length);
+    const { seated, overflow } = placeSitters(sitters.length, arena ? MAX_SPECTATORS : MAX_SITTERS);
     const walkIn = this.config.enter && !this.config.reducedMotion;
     const used: Record<OutsideGroup, number> = { time: 0, place: 0, both: 0, none: 0, no: 0 };
     let seatIndex = 0;
+    const onTeam = { blue: 0, red: 0 };
     for (const entry of this.config.roster) {
+      if (entry.group === 'duel') {
+        const team = entry.team ?? 'blue';
+        const place = onTeam[team]++;
+        const spot = duelSpot(team, place);
+        const person = this.people.create(entry);
+        // Neighbours' name labels sit at two heights, so a line of five does not print over itself.
+        if (place % 2 === 1) person.label.position.y += 0.3;
+        person.root.position.set(spot.x, 0, spot.z);
+        person.root.rotation.y = Math.atan2(spot.lookX - spot.x, spot.lookZ - spot.z);
+        this.persons.push(person);
+        this.crowd.add(person.root);
+        continue;
+      }
       if (entry.group === 'sit') {
         if (seatIndex >= seated) continue;
-        const seat = layout.seats[seatIndex];
+        const seat = seats[seatIndex];
         if (!seat) continue;
         const person = this.people.create(entry);
-        person.root.position.set(seat.x, 0, seat.z);
+        person.root.position.set(seat.x, seat.y, seat.z);
         person.root.rotation.y = seat.back ? 0 : Math.PI;
         if (walkIn) {
           const entrance = makeEntrance(person, seat, seatIndex, seated);
@@ -173,17 +192,17 @@ export class SceneController {
       this.persons.push(person);
       this.crowd.add(person.root);
     }
-    if (overflow > 0) this.addMore(overflow, layout.tables.length);
+    if (overflow > 0) this.addMore(overflow, 'tables' in layout && layout.tables.length <= 4 ? 3.4 : 5.2);
     this.applyHighlight();
   }
 
-  private addMore(count: number, tables: number): void {
+  private addMore(count: number, x: number): void {
     const texture = bubbleTexture(this.kit.p, this.config.moreLabel(count), readStatusColours().sit);
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
     sprite.scale.set(BUBBLE_SIZE.width, BUBBLE_SIZE.height, 1);
     sprite.center.set(0.5, 0.02);
     sprite.renderOrder = 11;
-    sprite.position.set(tables > 4 ? 5.2 : 3.4, LABEL_SIZE.height + 1.0, -3.5);
+    sprite.position.set(x, LABEL_SIZE.height + 1.0, -3.5);
     this.crowd.add(sprite);
     this.more = sprite;
   }

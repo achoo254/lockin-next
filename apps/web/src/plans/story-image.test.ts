@@ -133,7 +133,7 @@ describe('story templates', () => {
   it('gives every activity a template, each with its own sticker except "other"', () => {
     for (const activity of ACTIVITIES) expect(STORY_TEMPLATES[activity]).toBeDefined();
     const stickers = ACTIVITIES.filter((activity) => activity !== 'other').map((activity) => storyTemplate(activity).sticker);
-    expect(new Set(stickers).size).toBe(10);
+    expect(new Set(stickers).size).toBe(11);
     for (const sticker of stickers) expect(sticker).toMatch(/^\/stickers\/[a-z]+\.webp$/);
     expect(storyTemplate('other')).toBe(DEFAULT_TEMPLATE);
     // Each sticker is a file of the site (each background token is checked by pnpm check:tokens).

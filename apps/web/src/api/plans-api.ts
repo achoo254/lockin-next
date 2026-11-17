@@ -1,8 +1,9 @@
 /** The plan API (docs/plans-api.md), its answers checked at the boundary. */
 import * as z from 'zod/mini';
+import { DUEL_RULES, type Duel, GAMES, WIN_CONDITIONS } from '../../../server/src/plans/duel';
 import { ApiError, BAD_RESPONSE, apiFetch } from './api-client';
 
-export const ACTIVITIES = ['coffee', 'dinner', 'movie', 'karaoke', 'day_trip', 'birthday', 'lunch', 'party', 'team_building', 'meeting', 'other'] as const;
+export const ACTIVITIES = ['coffee', 'dinner', 'movie', 'karaoke', 'solo_game', 'day_trip', 'birthday', 'lunch', 'party', 'team_building', 'meeting', 'other'] as const;
 export type Activity = (typeof ACTIVITIES)[number];
 export const RSVPS = ['going', 'maybe', 'no'] as const;
 export type Rsvp = (typeof RSVPS)[number];
@@ -32,6 +33,17 @@ const ParticipantSchema = z.object({
 });
 export type Participant = z.infer<typeof ParticipantSchema>;
 
+/** The house rules of a solo game plan (plans/duel.ts). */
+const DuelSchema = z.object({
+  game: z.enum(GAMES),
+  bestOf: z.union([z.literal(1), z.literal(3), z.literal(5)]),
+  winCondition: z.enum(WIN_CONDITIONS),
+  rules: z.array(z.enum(DUEL_RULES)),
+  customRules: z.array(z.string()),
+  stake: z.nullable(z.string()),
+});
+export type { Duel };
+
 const PlanStatusSchema = z.enum(['open', 'locked', 'done', 'cancelled', 'expired']);
 export type PlanStatus = z.infer<typeof PlanStatusSchema>;
 
@@ -46,6 +58,7 @@ const PlanViewSchema = z.object({
   budgetPerPerson: z.nullable(z.number()),
   groupSize: z.nullable(z.number()),
   memberNames: z.array(z.string()),
+  duel: z.nullable(DuelSchema),
   voteDeadline: z.string(),
   readOnlyAt: z.string(),
   status: PlanStatusSchema,
@@ -111,6 +124,8 @@ export interface CreatePlanInput {
   groupSize?: number;
   /** The names of the people expected, to tell who has not voted yet. */
   memberNames?: string[];
+  /** The house rules: given exactly when `activity` is `solo_game`. */
+  duel?: Duel;
   voteDeadline: string;
   options: Array<{ kind: 'time'; startsAt: string } | { kind: 'place'; label: string; mapUrl?: string }>;
   creatorDisplayName?: string;

@@ -8,6 +8,7 @@ import { asc, desc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { type Activity, type OptionKind, type PlanStatus, type Rsvp, participants, planOptions, votes } from '../db/schema';
 import { type PlanAction, canDo, readOnlyAt } from './plan-rules';
+import type { Duel } from './duel';
 import type { PlanRow, PlanSummary } from './plan-store';
 import type { ManageLink, ShareLink } from './share-link';
 
@@ -50,6 +51,8 @@ export interface PlanView {
   groupSize: number | null;
   /** The names of the people the creator expects, in the order given (empty when none). */
   memberNames: string[];
+  /** The house rules of a solo game plan, null for any other plan. */
+  duel: Duel | null;
   voteDeadline: string;
   /** When the plan turns read-only if it is still open or locked then. */
   readOnlyAt: string;
@@ -117,6 +120,7 @@ export async function buildPlanView(
     budgetPerPerson: plan.budgetPerPerson,
     groupSize: plan.groupSize,
     memberNames: plan.memberNames,
+    duel: plan.duel,
     voteDeadline: plan.voteDeadline.toISOString(),
     readOnlyAt: readOnlyAt(plan.voteDeadline).toISOString(),
     status: plan.status,

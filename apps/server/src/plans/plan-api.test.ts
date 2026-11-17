@@ -156,6 +156,71 @@ describe('creating and listing plans', () => {
   });
 });
 
+/** Each test has its own account: plans are limited per account per hour. */
+describe('solo game plans', () => {
+  const duel = {
+    game: 'lien_quan',
+    bestOf: 3,
+    winCondition: 'first_tower',
+    rules: ['basic_attacks_only', 'no_bush', 'no_minion_farm', 'no_heal'],
+    customRules: ['Không mua đồ trong 3 phút đầu'],
+    stake: 'Thua bao ly trà sữa',
+  };
+  const solo = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({ activity: 'solo_game', title: 'Solo Liên Quân', duel, ...overrides });
+
+  it('keeps the house rules of a solo game plan and shows them to guests who open the link', async () => {
+    const creator = await signedIn('solo-a');
+    const created = await newPlan(creator, solo());
+    expect(created.plan).toMatchObject({ activity: 'solo_game', duel });
+    const guest = new Browser(server);
+    const seen = (await (await guest.call(`/api/k/${created.share.token}`)).json()) as PlanAnswer;
+    expect(seen.plan).toMatchObject({ activity: 'solo_game', duel });
+  });
+
+  it('turns an empty stake into none, and takes a duel without rules', async () => {
+    const creator = await signedIn('solo-b');
+    const created = await newPlan(creator, solo({ duel: { ...duel, rules: [], customRules: [], stake: '  ' } }));
+    expect(created.plan).toMatchObject({ duel: { rules: [], customRules: [], stake: null } });
+  });
+
+  it('refuses a solo game without rules, rules on another activity, and bad rules', async () => {
+    const creator = await signedIn('solo-c');
+    const bads = [
+      solo({ duel: undefined }),
+      { duel },
+      solo({ duel: { ...duel, game: 'chess' } }),
+      solo({ duel: { ...duel, bestOf: 2 } }),
+      solo({ duel: { ...duel, rules: ['no_bush', 'no_bush'] } }),
+      solo({ duel: { ...duel, rules: ['no_fun'] } }),
+      solo({ duel: { ...duel, customRules: ['a', 'b', 'c', 'd', 'e', 'f'] } }),
+      solo({ duel: { ...duel, customRules: ['Một luật', 'một LUẬT'] } }),
+      solo({ duel: { ...duel, customRules: ['two\nlines'] } }),
+      solo({ duel: { ...duel, extra: true } }),
+    ];
+    for (const bad of bads) {
+      const res = await creator.call('/api/plans', { method: 'POST', body: JSON.stringify(planBody(clock, bad)) });
+      expect([res.status, await res.json()]).toEqual([400, { error: 'invalid-body' }]);
+    }
+  });
+
+  it('lets the creator edit the rules, and keeps rules and activity in step', async () => {
+    const creator = await signedIn('solo-d');
+    const created = await newPlan(creator, solo());
+    const id = created.plan.id ?? '';
+    const edited = await creator.call(`/api/plans/${id}`, { method: 'PATCH', body: JSON.stringify({ duel: { ...duel, bestOf: 5, rules: ['no_bush'] } }) });
+    expect(edited.status).toBe(200);
+    expect(((await edited.json()) as PlanAnswer).plan.duel).toMatchObject({ bestOf: 5, rules: ['no_bush'] });
+    // Leaving the solo kind drops the rules; rules cannot be put on a plan that is not a solo game.
+    const plain = await newPlan(creator);
+    const onPlain = await creator.call(`/api/plans/${plain.plan.id}`, { method: 'PATCH', body: JSON.stringify({ duel }) });
+    expect([onPlain.status, await onPlain.json()]).toEqual([400, { error: 'invalid-body' }]);
+    const toCoffee = await creator.call(`/api/plans/${id}`, { method: 'PATCH', body: JSON.stringify({ activity: 'coffee' }) });
+    expect(((await toCoffee.json()) as PlanAnswer).plan).toMatchObject({ activity: 'coffee', duel: null });
+    const backToSolo = await creator.call(`/api/plans/${id}`, { method: 'PATCH', body: JSON.stringify({ activity: 'solo_game' }) });
+    expect([backToSolo.status, await backToSolo.json()]).toEqual([400, { error: 'invalid-body' }]);
+  });
+});
+
 describe('the plan page for guests', () => {
   it('lets a guest open, join, vote, say whether they go and rename, without an account', async () => {
     const creator = await signedIn('creator-a');
