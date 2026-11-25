@@ -78,11 +78,11 @@ Thiếu biến bắt buộc hay sai dạng thì server từ chối khởi độn
 6. **Cài unit và nginx:** `SSH_TARGET=<alias> bash infra/deploy.sh setup`. Chạy lại sau khi sửa unit hay site nginx:
    unit đổi thì service đang chạy được restart ngay.
 7. **Release:** `SSH_TARGET=<alias> bash infra/deploy.sh`.
-8. **User CI:** tạo user hạn chế `lockin-deploy` và secret của repo (mục Deploy tự động).
+8. **User CI:** tạo user hạn chế `lockin-deploy` và secret của repo (mục Deploy qua CI).
 
-## Deploy tự động (CI)
+## Deploy qua CI
 
-**Mỗi lần push lên `main` là tự deploy.** `ci` (lint, typecheck, test, build) xanh thì `deploy.yml` chạy:
+**Deploy khi gọi (từ 25/11/2026):** push lên `main` chỉ chạy `ci`. Xong một việc thì chạy `tools/deploy-prod.sh` của workspace `hoandat-app` (hoặc `gh workflow run deploy.yml`); mỗi tối 22:25 workflow tự chạy nếu `main` đi trước lần deploy thành công gần nhất. Workflow lấy đầu `main`, chờ `ci` của commit đó xanh rồi `deploy.yml` chạy:
 
 1. Job `build` (không có secret nào) cài thư viện, `pnpm build`, gói `apps/web/dist`, `apps/server/dist`,
    `apps/server/drizzle` thành artifact; mã bản dạng `YYYYMMDD-HHMMSS-<sha12>`.
