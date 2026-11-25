@@ -82,7 +82,7 @@ Thiếu biến bắt buộc hay sai dạng thì server từ chối khởi độn
 
 ## Deploy qua CI
 
-**Deploy khi gọi (từ 25/11/2026):** push lên `main` chỉ chạy `ci`. Xong một việc thì chạy `tools/deploy-prod.sh` của workspace `hoandat-app` (hoặc `gh workflow run deploy.yml`); mỗi tối 22:25 workflow tự chạy nếu `main` đi trước lần deploy thành công gần nhất. Workflow lấy đầu `main`, chờ `ci` của commit đó xanh rồi `deploy.yml` chạy:
+**Deploy khi gọi (từ 25/11/2026):** push lên `main` chỉ chạy `ci`. Xong một việc thì chạy `tools/deploy-prod.sh` của workspace `hoandat-app` (hoặc `gh workflow run deploy.yml`); mỗi tối 22:25 workflow tự chạy nếu `main` đi trước lần deploy thành công gần nhất. Workflow lấy đầu `main` (không chờ `ci`) rồi `deploy.yml` chạy:
 
 1. Job `build` (không có secret nào) cài thư viện, `pnpm build`, gói `apps/web/dist`, `apps/server/dist`,
    `apps/server/drizzle` thành artifact; mã bản dạng `YYYYMMDD-HHMMSS-<sha12>`.
